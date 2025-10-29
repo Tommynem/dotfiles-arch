@@ -1,0 +1,73 @@
+# Restic Backup Exclusion Patterns
+# Created: 2025-11-29
+# Note: Backups are encrypted with AES-256, so sensitive files are safe to include
+
+# Cache directories
+/home/tomge/.cache/
+/home/tomge/.local/share/Trash/
+/home/tomge/.npm/
+/home/tomge/.yarn/
+/home/tomge/.pnpm-store/
+
+# Browser caches
+/home/tomge/.config/chromium/Default/Cache/
+/home/tomge/.config/chromium/Default/Code Cache/
+/home/tomge/.config/chromium/Default/GPUCache/
+/home/tomge/.config/BraveSoftware/*/Cache/
+/home/tomge/.config/BraveSoftware/*/Code Cache/
+/home/tomge/.config/BraveSoftware/*/GPUCache/
+/home/tomge/.librewolf/*/cache2/
+
+# Development caches and build artifacts
+**/node_modules/
+**/__pycache__/
+**/.pytest_cache/
+**/.venv/
+**/venv/
+**/.tox/
+**/dist/
+**/build/
+**/.next/
+**/.nuxt/
+**/.output/
+**/.turbo/
+**/.vercel/
+
+# IDE and editor caches
+/home/tomge/.local/share/nvim/swap/
+/home/tomge/.local/share/nvim/shada/
+/home/tomge/.local/state/nvim/
+
+# Docker and container data
+/home/tomge/.docker/
+
+# Mise (development environment) downloads and cache
+/home/tomge/.local/share/mise/downloads/
+/home/tomge/.local/share/mise/installs/*/src/
+
+# Large media caches
+**/.thumbnails/
+**/thumbs.db
+
+# Temporary files
+**/*.tmp
+**/*.temp
+**/.DS_Store
+**/._*
+
+# Virtual machine images (uncomment if you have VMs to exclude)
+# **/*.vdi
+# **/*.vmdk
+# **/*.qcow2
+
+# Mounted network drives (avoid recursive backup)
+/home/tomge/mnt/
+/mnt/
+
+# Project-specific .env files (usually in git or generated, exclude to avoid conflicts)
+**/.env.local
+**/.env.*.local
+
+# Optional: Large log files (uncomment if desired)
+# **/*.log
+# **/*.log.*

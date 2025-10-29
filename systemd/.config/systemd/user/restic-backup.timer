@@ -1,0 +1,18 @@
+[Unit]
+Description=Hourly restic backup
+
+[Timer]
+# Run every hour on the hour
+OnCalendar=hourly
+
+# If system was off, run backup shortly after boot
+OnBootSec=2min
+
+# Persist timer state across reboots - ensures missed backups run
+Persistent=true
+
+# Randomize start by up to 5 minutes to avoid exact-hour load
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

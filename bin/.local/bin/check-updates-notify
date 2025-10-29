@@ -1,0 +1,177 @@
+#!/bin/bash
+# check-updates-notify - Check for system updates and send notifications
+# Part of dotfiles-arch
+
+set -eo pipefail
+
+# Configuration
+readonly CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/check-updates"
+readonly CACHE_FILE="$CACHE_DIR/last-check"
+readonly ICON_UPDATES="software-update-available"
+readonly ICON_SECURITY="security-high"
+readonly ICON_OK="emblem-default"
+readonly NOTIFICATION_TITLE="System Update Check"
+
+# Ensure cache directory exists
+mkdir -p "$CACHE_DIR"
+
+# Helper function to send notifications
+send_notification() {
+    local body="$1"
+    local urgency="${2:-normal}"
+    local icon="${3:-$ICON_UPDATES}"
+
+    # Use printf to interpret escape sequences like \n
+    local formatted_body
+    formatted_body=$(printf "%b" "$body")
+
+    notify-send \
+        --urgency="$urgency" \
+        --icon="$icon" \
+        --app-name="System Updates" \
+        "$NOTIFICATION_TITLE" \
+        "$formatted_body"
+}
+
+# Check for official repository updates
+check_official_updates() {
+    checkupdates 2>/dev/null || true
+}
+
+# Check for AUR updates
+check_aur_updates() {
+    if command -v yay &>/dev/null; then
+        yay -Qua 2>/dev/null || true
+    fi
+}
+
+# Check for security vulnerabilities
+check_security() {
+    if command -v arch-audit &>/dev/null; then
+        timeout 10 arch-audit 2>/dev/null || true
+    fi
+}
+
+# Check for Omarchy updates
+check_omarchy_updates() {
+    if command -v omarchy-update-available &>/dev/null; then
+        omarchy-update-available 2>/dev/null || true
+    fi
+}
+
+# Count non-empty lines
+count_lines() {
+    local text="$1"
+    if [[ -n "$text" ]]; then
+        echo "$text" | grep -c "."
+    else
+        echo "0"
+    fi
+}
+
+# Main execution
+main() {
+    echo "Checking for updates..."
+
+    # Gather all update information
+    local official_updates aur_updates omarchy_updates security_issues
+    local official_count aur_count security_count
+    local has_omarchy_update=false
+
+    official_updates=$(check_official_updates)
+    official_count=$(count_lines "$official_updates")
+
+    aur_updates=$(check_aur_updates)
+    aur_count=$(count_lines "$aur_updates")
+
+    omarchy_updates=$(check_omarchy_updates)
+    [[ -n "$omarchy_updates" ]] && has_omarchy_update=true
+
+    security_issues=$(check_security)
+    if [[ -n "$security_issues" ]]; then
+        security_count=$(echo "$security_issues" | grep -c "is affected by" || echo "0")
+    else
+        security_count=0
+    fi
+
+    # Save check time
+    date +%s > "$CACHE_FILE"
+
+    # Build notification
+    local body=""
+    local urgency="normal"
+    local icon="$ICON_UPDATES"
+    local total_updates=$((official_count + aur_count))
+    local has_any_updates=false
+
+    # Check if there are any updates
+    if [[ $total_updates -gt 0 ]] || [[ $has_omarchy_update == true ]] || [[ $security_count -gt 0 ]]; then
+        has_any_updates=true
+    fi
+
+    # Build notification body
+    if [[ $has_any_updates == true ]]; then
+        # Package Updates Section
+        if [[ $total_updates -gt 0 ]] || [[ $has_omarchy_update == true ]]; then
+            body+="<b>Package Updates:</b>\n"
+
+            if [[ $official_count -gt 0 ]]; then
+                body+="  • Official Repos: $official_count package"
+                [[ $official_count -gt 1 ]] && body+="s"
+                body+="\n"
+            fi
+
+            if [[ $aur_count -gt 0 ]]; then
+                body+="  • AUR: $aur_count package"
+                [[ $aur_count -gt 1 ]] && body+="s"
+                body+="\n"
+            fi
+
+            if [[ $has_omarchy_update == true ]]; then
+                body+="  • Omarchy: ${omarchy_updates}\n"
+            fi
+
+            body+="\n"
+        fi
+
+        # Security Section
+        if [[ $security_count -gt 0 ]]; then
+            body+="<b>Security:</b>\n"
+            body+="  ⚠ $security_count vulnerabilit"
+            [[ $security_count -gt 1 ]] && body+="ies" || body+="y"
+            body+=" found\n"
+            body+="  Run 'arch-audit' for details\n\n"
+
+            urgency="critical"
+            icon="$ICON_SECURITY"
+        fi
+
+        # Action hint
+        body+="─────────────────\n"
+        body+="Update via Omarchy menu"
+    else
+        # All up to date
+        body="<b>System is up to date</b>\n\n"
+        body+="No package updates available\n"
+        body+="No security vulnerabilities found"
+        icon="$ICON_OK"
+    fi
+
+    # Send notification
+    send_notification "$body" "$urgency" "$icon"
+
+    # Terminal output
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Summary:"
+    echo "  Official:  $official_count"
+    echo "  AUR:       $aur_count"
+    echo "  Omarchy:   $([[ $has_omarchy_update == true ]] && echo "update available" || echo "up to date")"
+    echo "  Security:  $security_count"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Check completed at $(date)"
+}
+
+# Run main function
+main "$@"

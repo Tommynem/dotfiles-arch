@@ -1,0 +1,131 @@
+#!/bin/bash
+# Restic Backup Script
+# Created: 2025-11-29
+# Performs encrypted backup to NAS with retention policy
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Log file
+LOG_DIR="/home/tomge/.local/share/restic/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/backup-$(date +%Y%m%d-%H%M%S).log"
+
+# Function to log messages
+log() {
+    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $*" | tee -a "$LOG_FILE"
+}
+
+log_error() {
+    echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERROR:${NC} $*" | tee -a "$LOG_FILE"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARNING:${NC} $*" | tee -a "$LOG_FILE"
+}
+
+# Load environment configuration
+if [[ ! -f "/home/tomge/.config/restic/env" ]]; then
+    log_error "Configuration file not found: /home/tomge/.config/restic/env"
+    exit 1
+fi
+
+source /home/tomge/.config/restic/env
+
+# Verify password file exists
+if [[ ! -f "$RESTIC_PASSWORD_FILE" ]]; then
+    log_error "Password file not found: $RESTIC_PASSWORD_FILE"
+    log_error "Please create the password file first"
+    exit 1
+fi
+
+# Verify repository exists
+if [[ ! -d "$RESTIC_REPOSITORY" ]]; then
+    log_error "Repository not found: $RESTIC_REPOSITORY"
+    log_error "Please initialize the repository first with: restic init"
+    exit 1
+fi
+
+# Verify NAS is mounted
+if ! mountpoint -q /mnt/nas-pool; then
+    log_error "NAS is not mounted at /mnt/nas-pool"
+    exit 1
+fi
+
+log "Starting restic backup"
+log "Repository: $RESTIC_REPOSITORY"
+log "Source: $BACKUP_SOURCE"
+
+# Check for stale locks (e.g., from system crash)
+log "Checking for stale locks..."
+if ! restic list locks --quiet 2>&1 | tee -a "$LOG_FILE"; then
+    log_warning "Repository may have stale locks, attempting unlock..."
+    if restic unlock 2>&1 | tee -a "$LOG_FILE"; then
+        log "Stale lock removed successfully"
+    else
+        log_error "Failed to remove stale lock"
+        exit 1
+    fi
+fi
+
+# Create backup
+log "Creating backup snapshot..."
+if restic backup "$BACKUP_SOURCE" \
+    --exclude-file="$RESTIC_EXCLUDE_FILE" \
+    --exclude-caches \
+    --one-file-system \
+    --tag "auto" \
+    --tag "$(hostname)" \
+    --retry-lock 5m 2>&1 | tee -a "$LOG_FILE"; then
+    log "Backup snapshot created successfully"
+else
+    log_error "Backup failed"
+    exit 1
+fi
+
+# Apply retention policy
+log "Applying retention policy..."
+log "  - Hourly: $RETENTION_HOURLY"
+log "  - Daily: $RETENTION_DAILY"
+log "  - Weekly: $RETENTION_WEEKLY"
+log "  - Monthly: $RETENTION_MONTHLY"
+log "  - Yearly: $RETENTION_YEARLY"
+
+if restic forget \
+    --keep-hourly "$RETENTION_HOURLY" \
+    --keep-daily "$RETENTION_DAILY" \
+    --keep-weekly "$RETENTION_WEEKLY" \
+    --keep-monthly "$RETENTION_MONTHLY" \
+    --keep-yearly "$RETENTION_YEARLY" \
+    --tag "auto" \
+    --prune \
+    --retry-lock 5m 2>&1 | tee -a "$LOG_FILE"; then
+    log "Retention policy applied successfully"
+else
+    log_warning "Retention policy failed (backup still created)"
+fi
+
+# Verify repository integrity (quick check)
+log "Verifying repository integrity..."
+if restic check --read-data-subset=5% --retry-lock 5m 2>&1 | tee -a "$LOG_FILE"; then
+    log "Repository verification passed"
+else
+    log_error "Repository verification failed!"
+fi
+
+# Show statistics
+log "Backup statistics:"
+restic stats latest --mode raw-data 2>&1 | tee -a "$LOG_FILE"
+
+# Clean up old logs (keep last 30 days)
+find "$LOG_DIR" -name "backup-*.log" -mtime +30 -delete 2>/dev/null || true
+
+log "Backup completed successfully"
+log "Log file: $LOG_FILE"
+
+exit 0

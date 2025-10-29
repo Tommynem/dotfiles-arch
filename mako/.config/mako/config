@@ -1,0 +1,8 @@
+include=~/.local/share/omarchy/default/mako/core.ini
+
+# Allow taller notifications for update summaries
+height=800
+
+text-color=#cad3f5
+border-color=#c6d0f5
+background-color=#24273a

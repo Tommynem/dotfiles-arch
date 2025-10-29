@@ -1,0 +1,4 @@
+[[manager.prepend_keymap]]
+  on = [ "g", "n" ]
+  run = "cd /mnt/nas-pool"
+  desc = "Go to NAS pool"

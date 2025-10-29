@@ -1,0 +1,15 @@
+[Unit]
+Description=Check for system updates and security patches
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/check-updates-notify
+
+# Environment for notifications to work in Hyprland
+Environment=DISPLAY=:0
+Environment=WAYLAND_DISPLAY=wayland-1
+Environment=XDG_RUNTIME_DIR=/run/user/%U
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,65 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Neovim generated files
+*.log
+.netrwhist
+*.tmp
+*.swp
+*.swo
+*~
+*.backup
+*.bak
+
+# Session files
+Session.vim
+Sessionx.vim
+sessions/
+
+# Personal/local settings
+*.local
+*.private
+local/
+.claude/
+
+# Health check output
+checkhealth.md
+integrations.md
+
+# Plugin/package manager files (keep lazy-lock.json for reproducibility)
+plugin/
+undodir/
+spell/
+
+# LSP and DAP
+.luarc.json
+.luacheckrc
+
+# Cache and temporary files
+cache/
+tmp/
+temp/
+
+# IDE specific
+.idea/
+.vscode/
+*.sublime-*
+
+# Personal notes
+notes.md
+TODO.md
+personal/
+
+# Credentials and secrets
+*.key
+*.pem
+*.crt
+*.secret
+credentials.json
+secrets.lua

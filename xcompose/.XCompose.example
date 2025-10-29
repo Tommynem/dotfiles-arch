@@ -1,0 +1,19 @@
+include "%H/.local/share/omarchy/default/xcompose"
+
+# Identification - Replace with your own info
+<Multi_key> <i> <n> : "YOUR_NAME"
+<Multi_key> <i> <e> : "your.email@example.com"
+<Multi_key> <i> <p> : "+1 555 1234567"
+
+# Special keys unavailable for my keyboard
+<Multi_key> <s> <t> : "~"                     # Tilde (CapsLock + t + i)
+<Multi_key> <s> <b> : "`"                     # Backtick (CapsLock + b + t)
+
+# German umlauts (standard compose sequences)
+<Multi_key> <a> <e> : "ä"                     # CapsLock + a + e
+<Multi_key> <A> <E> : "Ä"                     # CapsLock + Shift+A + Shift+E
+<Multi_key> <o> <e> : "ö"                     # CapsLock + o + e
+<Multi_key> <O> <E> : "Ö"                     # CapsLock + Shift+O + Shift+E
+<Multi_key> <u> <e> : "ü"                     # CapsLock + u + e
+<Multi_key> <U> <E> : "Ü"                     # CapsLock + Shift+U + Shift+E
+<Multi_key> <s> <s> : "ß"                     # CapsLock + s + s

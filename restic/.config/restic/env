@@ -1,0 +1,36 @@
+# Restic Environment Configuration
+# Created: 2025-11-29
+
+# Repository location (new post-incident repository)
+export RESTIC_REPOSITORY="/mnt/nas-pool/backup/restic-omarchy"
+
+# Password file location
+export RESTIC_PASSWORD_FILE="/home/tomge/.config/restic/password"
+
+# Exclude file location
+export RESTIC_EXCLUDE_FILE="/home/tomge/.config/restic/exclude.txt"
+
+# Cache directory
+export RESTIC_CACHE_DIR="/home/tomge/.cache/restic"
+
+# Backup source directory
+export BACKUP_SOURCE="/home/tomge"
+
+# Optional: Set nice level for backup process (reduce CPU priority)
+export RESTIC_NICE="10"
+
+# Optional: Limit bandwidth (uncomment and adjust if needed)
+# export RESTIC_LIMIT_UPLOAD="10240"  # KB/s (10 MB/s)
+# export RESTIC_LIMIT_DOWNLOAD="10240"
+
+# Retention policy
+# Hourly: keep last 24 hours of hourly backups
+export RETENTION_HOURLY="24"
+# Daily: keep last 30 days
+export RETENTION_DAILY="30"
+# Weekly: keep last 12 weeks (3 months)
+export RETENTION_WEEKLY="12"
+# Monthly: keep last 12 months (1 year)
+export RETENTION_MONTHLY="12"
+# Yearly: keep last 3 years
+export RETENTION_YEARLY="3"

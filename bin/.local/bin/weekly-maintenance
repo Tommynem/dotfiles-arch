@@ -1,0 +1,654 @@
+#!/bin/bash
+#
+# Weekly Maintenance Script for Omarchy Development Machine
+# Purpose: Clean caches, check system health, manage snapshots, security audit
+# UI: Built with Gum for beautiful interactive prompts
+#
+
+set -euo pipefail
+
+# Configuration
+TIMESTAMP="$(date +%Y-%m-%d_%H-%M-%S)"
+REPORTS_DIR="${HOME}/archive/system/reports"
+LOGS_DIR="${HOME}/archive/system/reports/logs"
+LOG_FILE="${LOGS_DIR}/${TIMESTAMP}.log"
+REPORT_FILE="${REPORTS_DIR}/${TIMESTAMP}.txt"
+DOTFILES_DIR="${HOME}/dotfiles-arch"
+RESTIC_ENV_FILE="${HOME}/.config/restic/env"
+EXCLUDED_DIRS=("${HOME}/work" "${HOME}/personal")
+
+# Ensure directories exist
+mkdir -p "$REPORTS_DIR" "$LOGS_DIR"
+
+# Gum styling
+export GUM_SPIN_SPINNER="dot"
+export GUM_SPIN_SHOW_OUTPUT=false
+
+# Metrics
+SPACE_FREED=0
+ISSUES_FOUND=0
+WARNINGS=0
+
+# Logging functions
+log() {
+    echo "$1" >> "$LOG_FILE"
+}
+
+log_result() {
+    if [[ $# -gt 0 ]]; then
+        echo "$1" | tee -a "$LOG_FILE"
+    else
+        # Read from stdin when piped
+        cat | tee -a "$LOG_FILE"
+    fi
+}
+
+# Get directory size in bytes
+get_size_bytes() {
+    du -sb "$1" 2>/dev/null | cut -f1 || echo "0"
+}
+
+# Get human readable size
+get_size_human() {
+    du -sh "$1" 2>/dev/null | cut -f1 || echo "0"
+}
+
+# Calculate and track space freed
+track_space_freed() {
+    local before=$1
+    local after=$2
+    local freed=$((before - after))
+    SPACE_FREED=$((SPACE_FREED + freed))
+}
+
+# Check if command exists
+command_exists() {
+    command -v "$1" &>/dev/null
+}
+
+# Display section header
+section_header() {
+    gum style \
+        --border double \
+        --border-foreground "magenta" \
+        --padding "0 2" \
+        --margin "1 0" \
+        --width 70 \
+        --align center \
+        "$1"
+}
+
+# Display success message
+show_success() {
+    gum style --foreground "green" "✓ $1"
+    log "[SUCCESS] $1"
+}
+
+# Display warning message
+show_warning() {
+    gum style --foreground "yellow" "⚠ $1"
+    log "[WARNING] $1"
+    WARNINGS=$((WARNINGS + 1))
+}
+
+# Display error message
+show_error() {
+    gum style --foreground "red" "✗ $1"
+    log "[ERROR] $1"
+    ISSUES_FOUND=$((ISSUES_FOUND + 1))
+}
+
+# Display info message
+show_info() {
+    gum style --foreground "blue" "ℹ $1"
+    log "[INFO] $1"
+}
+
+# Start report
+start_report() {
+    cat > "$REPORT_FILE" <<EOF
+╔════════════════════════════════════════════════════════════════╗
+║         WEEKLY MAINTENANCE REPORT - $(date +%Y-%m-%d)              ║
+╔════════════════════════════════════════════════════════════════╗
+
+Generated: $(date +"%Y-%m-%d %H:%M:%S")
+Hostname: $(hostname)
+User: $(whoami)
+
+EOF
+}
+
+# Phase 1: Pre-flight Checks
+preflight_checks() {
+    section_header "Phase 1: Pre-flight Checks"
+
+    # Check Restic backups
+    gum spin --title "Checking Restic backups..." -- sleep 0.5
+    if command_exists restic; then
+        # Load restic environment if available
+        local restic_configured=false
+        if [[ -f "$RESTIC_ENV_FILE" ]]; then
+            source "$RESTIC_ENV_FILE"
+            # Check if repository exists and NAS is mounted
+            if [[ -n "${RESTIC_REPOSITORY:-}" ]] && [[ -d "$RESTIC_REPOSITORY" ]]; then
+                restic_configured=true
+            fi
+        fi
+
+        if $restic_configured; then
+            # Get snapshot count using restic stats (more reliable than parsing snapshots output)
+            local snapshot_output
+            if snapshot_output=$(restic snapshots --no-lock --json 2>/dev/null); then
+                # Count snapshots from JSON array (each snapshot is an object)
+                local snapshot_count
+                snapshot_count=$(echo "$snapshot_output" | grep -c '"short_id"' || echo "0")
+                if [ "$snapshot_count" -gt 0 ]; then
+                    show_success "Found $snapshot_count Restic backup(s)"
+                    echo ""
+                    gum style --foreground "cyan" "Most recent Restic snapshots:"
+                    # Show human-readable format for display
+                    restic snapshots --no-lock --last 5 2>/dev/null | tail -n +3 | head -n -2 | while read -r line; do
+                        log_result "$line"
+                    done
+                else
+                    show_warning "Restic configured but no snapshots found"
+                fi
+            else
+                show_warning "Restic repository exists but failed to list snapshots"
+            fi
+        else
+            if [[ -f "$RESTIC_ENV_FILE" ]]; then
+                show_warning "Restic config exists but repository not accessible (NAS may not be mounted)"
+            else
+                show_warning "Restic not configured (no env file at $RESTIC_ENV_FILE)"
+            fi
+        fi
+    else
+        show_warning "Restic not installed"
+    fi
+
+    echo ""
+
+    # Check Limine snapshots
+    gum spin --title "Checking Limine snapshots..." -- sleep 0.5
+    if command_exists omarchy-snapshot; then
+        local limine_snapshots=$(omarchy-snapshot list 2>/dev/null || echo "")
+        if [ -n "$limine_snapshots" ]; then
+            show_success "Limine snapshots available"
+            echo "$limine_snapshots" | log_result
+        else
+            show_warning "No Limine snapshots found"
+        fi
+    else
+        show_error "omarchy-snapshot command not found"
+    fi
+
+    echo ""
+
+    # Prompt for backup creation (only if restic is configured)
+    if $restic_configured && gum confirm "Create a Restic snapshot before maintenance?" --default=false; then
+        local backup_result=0
+        gum spin --title "Creating Restic snapshot..." -- \
+            restic backup "${BACKUP_SOURCE:-$HOME}" \
+                --exclude-file="${RESTIC_EXCLUDE_FILE:-/dev/null}" \
+                --exclude-caches \
+                --tag="weekly-maintenance" \
+                2>&1 | tee -a "$LOG_FILE" || backup_result=$?
+
+        if [ "$backup_result" -eq 0 ]; then
+            show_success "Restic snapshot created"
+        else
+            show_error "Failed to create Restic snapshot"
+            if ! gum confirm "Continue anyway?"; then
+                exit 1
+            fi
+        fi
+    fi
+}
+
+# Phase 2: Package Maintenance
+package_maintenance() {
+    section_header "Phase 2: Package Management"
+
+    # Clean pacman cache
+    gum spin --title "Cleaning pacman cache (keeping last 2 versions)..." -- sleep 0.5
+    if command_exists paccache; then
+        local cache_before=$(get_size_bytes /var/cache/pacman/pkg)
+        sudo paccache -rk2 2>&1 | tee -a "$LOG_FILE" >/dev/null
+        local cache_after=$(get_size_bytes /var/cache/pacman/pkg)
+        track_space_freed "$cache_before" "$cache_after"
+
+        local freed_mb=$(( (cache_before - cache_after) / 1048576 ))
+        show_success "Pacman cache cleaned (freed ${freed_mb}MB)"
+    else
+        show_error "paccache not found (install pacman-contrib)"
+    fi
+
+    echo ""
+
+    # Remove orphaned packages
+    gum spin --title "Checking for orphaned packages..." -- sleep 0.5
+    local orphans=$(pacman -Qtdq 2>/dev/null || true)
+    if [ -n "$orphans" ]; then
+        local orphan_count=$(echo "$orphans" | wc -l)
+        show_warning "Found $orphan_count orphaned package(s)"
+
+        echo "$orphans" | gum style --foreground "gray" | log_result
+
+        if gum confirm "Remove orphaned packages?"; then
+            gum spin --title "Removing orphaned packages..." -- \
+                bash -c "echo '$orphans' | sudo pacman -Rns - 2>&1 | tee -a '$LOG_FILE' >/dev/null"
+            show_success "Orphaned packages removed"
+        fi
+    else
+        show_success "No orphaned packages found"
+    fi
+
+    echo ""
+
+    # Check for updates
+    gum spin --title "Checking for available updates..." -- sleep 0.5
+    local updates=$(checkupdates 2>/dev/null || true)
+    if [ -n "$updates" ]; then
+        local update_count=$(echo "$updates" | wc -l)
+        show_warning "$update_count package update(s) available"
+
+        echo "$updates" | head -n 10 | gum style --foreground "yellow" | log_result
+        if [ "$update_count" -gt 10 ]; then
+            show_info "... and $((update_count - 10)) more"
+        fi
+    else
+        show_success "System is up to date"
+    fi
+
+    echo ""
+
+    # Check AUR packages
+    if command_exists yay; then
+        gum spin --title "Checking AUR packages..." -- sleep 0.5
+        local aur_count=$(pacman -Qm | wc -l)
+        show_success "Found $aur_count AUR package(s) installed"
+
+        local aur_updates=$(yay -Qua 2>/dev/null || true)
+        if [ -n "$aur_updates" ]; then
+            local aur_update_count=$(echo "$aur_updates" | wc -l)
+            show_warning "$aur_update_count AUR update(s) available"
+            echo "$aur_updates" | gum style --foreground "yellow" | log_result
+        else
+            show_success "All AUR packages up to date"
+        fi
+    fi
+}
+
+# Phase 3: Cache Cleaning
+cache_cleaning() {
+    section_header "Phase 3: Cache Cleaning"
+
+    # User cache directory
+    if [ -d "${HOME}/.cache" ]; then
+        local before=$(get_size_bytes "${HOME}/.cache")
+        local cache_size=$(get_size_human "${HOME}/.cache")
+        show_info "Current cache size: $cache_size"
+
+        # Browser caches
+        for browser_cache in "${HOME}/.cache/chromium" "${HOME}/.cache/librewolf" "${HOME}/.cache/mozilla"; do
+            if [ -d "$browser_cache" ]; then
+                local browser_name=$(basename "$browser_cache")
+                gum spin --title "Cleaning ${browser_name} cache..." -- \
+                    rm -rf "${browser_cache}/Cache" "${browser_cache}/CacheStorage" \
+                           "${browser_cache}/Code Cache" "${browser_cache}/GPUCache" 2>/dev/null || true
+            fi
+        done
+
+        # Thumbnails
+        if [ -d "${HOME}/.cache/thumbnails" ]; then
+            gum spin --title "Cleaning old thumbnails..." -- \
+                find "${HOME}/.cache/thumbnails" -type f -atime +30 -delete 2>/dev/null || true
+        fi
+
+        local after=$(get_size_bytes "${HOME}/.cache")
+        track_space_freed "$before" "$after"
+        local new_size=$(get_size_human "${HOME}/.cache")
+        show_success "User cache cleaned (now ${new_size})"
+    fi
+
+    echo ""
+
+    # NPM cache
+    if command_exists npm; then
+        local npm_cache_dir=$(npm config get cache 2>/dev/null || echo "${HOME}/.npm")
+        if [ -d "$npm_cache_dir" ]; then
+            local before=$(get_size_bytes "$npm_cache_dir")
+            gum spin --title "Cleaning npm cache..." -- \
+                npm cache clean --force 2>&1 | tee -a "$LOG_FILE" >/dev/null
+            local after=$(get_size_bytes "$npm_cache_dir")
+            track_space_freed "$before" "$after"
+            show_success "npm cache cleaned"
+        fi
+    fi
+
+    # Yarn cache
+    if command_exists yarn; then
+        local yarn_cache_dir=$(yarn cache dir 2>/dev/null || echo "${HOME}/.yarn/cache")
+        if [ -d "$yarn_cache_dir" ]; then
+            local before=$(get_size_bytes "$yarn_cache_dir")
+            gum spin --title "Cleaning yarn cache..." -- \
+                yarn cache clean 2>&1 | tee -a "$LOG_FILE" >/dev/null
+            local after=$(get_size_bytes "$yarn_cache_dir")
+            track_space_freed "$before" "$after"
+            show_success "Yarn cache cleaned"
+        fi
+    fi
+
+    # pnpm cache
+    if command_exists pnpm; then
+        local pnpm_cache_dir=$(pnpm store path 2>/dev/null || echo "${HOME}/.pnpm-store")
+        if [ -d "$pnpm_cache_dir" ]; then
+            local before=$(get_size_bytes "$pnpm_cache_dir")
+            gum spin --title "Cleaning pnpm cache..." -- \
+                pnpm store prune 2>&1 | tee -a "$LOG_FILE" >/dev/null
+            local after=$(get_size_bytes "$pnpm_cache_dir")
+            track_space_freed "$before" "$after"
+            show_success "pnpm cache cleaned"
+        fi
+    fi
+
+    # pip cache
+    if command_exists pip; then
+        local pip_cache_dir="${HOME}/.cache/pip"
+        if [ -d "$pip_cache_dir" ]; then
+            local before=$(get_size_bytes "$pip_cache_dir")
+            gum spin --title "Cleaning pip cache..." -- \
+                pip cache purge 2>&1 | tee -a "$LOG_FILE" >/dev/null || true
+            local after=$(get_size_bytes "$pip_cache_dir")
+            track_space_freed "$before" "$after"
+            show_success "pip cache cleaned"
+        fi
+    fi
+
+    # mise cache
+    if command_exists mise; then
+        local mise_cache="${HOME}/.cache/mise"
+        if [ -d "$mise_cache" ]; then
+            local before=$(get_size_bytes "$mise_cache")
+            gum spin --title "Cleaning mise cache..." -- \
+                mise cache clear 2>&1 | tee -a "$LOG_FILE" >/dev/null || true
+            local after=$(get_size_bytes "$mise_cache")
+            track_space_freed "$before" "$after"
+            show_success "mise cache cleaned"
+        fi
+    fi
+
+    echo ""
+
+    # Docker cleanup
+    if command_exists docker; then
+        if systemctl is-active docker &>/dev/null || docker info &>/dev/null 2>&1; then
+            gum spin --title "Cleaning Docker images..." -- \
+                docker image prune -f 2>&1 | tee -a "$LOG_FILE" >/dev/null || true
+
+            gum spin --title "Cleaning Docker containers..." -- \
+                docker container prune -f 2>&1 | tee -a "$LOG_FILE" >/dev/null || true
+
+            gum spin --title "Cleaning Docker networks..." -- \
+                docker network prune -f 2>&1 | tee -a "$LOG_FILE" >/dev/null || true
+
+            gum spin --title "Cleaning Docker build cache..." -- \
+                docker builder prune -f 2>&1 | tee -a "$LOG_FILE" >/dev/null || true
+
+            show_success "Docker cleanup completed"
+        else
+            show_warning "Docker daemon not running - skipping"
+        fi
+    fi
+
+    echo ""
+
+    # System journal logs
+    gum spin --title "Cleaning system journal logs (keeping last 3 weeks)..." -- \
+        sudo journalctl --vacuum-time=3weeks 2>&1 | tee -a "$LOG_FILE" >/dev/null
+    show_success "Journal logs cleaned"
+}
+
+# Phase 4: System Health Checks
+system_health() {
+    section_header "Phase 4: System Health Checks"
+
+    # Failed systemd services
+    gum spin --title "Checking for failed systemd services..." -- sleep 0.5
+    local failed_services=$(systemctl --failed --no-pager --no-legend 2>/dev/null || true)
+    if [ -n "$failed_services" ]; then
+        show_error "Found failed services:"
+        echo "$failed_services" | gum style --foreground "red" | log_result
+    else
+        show_success "No failed services"
+    fi
+
+    echo ""
+
+    # Disk usage
+    show_info "Disk usage:"
+    df -h | grep -E '(Filesystem|/dev/)' | gum style --foreground "cyan" | log_result
+
+    local root_usage=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+    if [ "$root_usage" -gt 80 ]; then
+        show_error "Root filesystem usage is ${root_usage}% (>80%)"
+    elif [ "$root_usage" -gt 70 ]; then
+        show_warning "Root filesystem usage is ${root_usage}%"
+    else
+        show_success "Disk usage is healthy (${root_usage}%)"
+    fi
+
+    echo ""
+
+    # Check for recent errors in logs
+    gum spin --title "Checking recent system errors..." -- sleep 0.5
+    local recent_errors=$(journalctl -p 3 -b --no-pager --since "1 week ago" 2>/dev/null | wc -l)
+    if [ "$recent_errors" -gt 0 ]; then
+        show_warning "Found $recent_errors error(s) in last week's logs"
+        show_info "Last 10 errors:"
+        journalctl -p 3 -b --no-pager --since "1 week ago" | tail -n 10 | gum style --foreground "gray" | log_result
+    else
+        show_success "No critical errors in recent logs"
+    fi
+
+    echo ""
+
+    # Check for broken symlinks
+    gum spin --title "Checking for broken symlinks..." -- sleep 0.5
+    local broken_links=()
+    while IFS= read -r dir; do
+        if [ -d "$dir" ]; then
+            while IFS= read -r link; do
+                local skip=false
+                for excluded in "${EXCLUDED_DIRS[@]}"; do
+                    if [[ "$link" == "$excluded"* ]]; then
+                        skip=true
+                        break
+                    fi
+                done
+                [ "$skip" = true ] && continue
+                broken_links+=("$link")
+            done < <(find "$dir" -maxdepth 3 -xtype l 2>/dev/null || true)
+        fi
+    done < <(echo -e "${HOME}/.config\n${HOME}/.local")
+
+    if [ ${#broken_links[@]} -gt 0 ]; then
+        show_warning "Found ${#broken_links[@]} broken symlink(s):"
+        printf '%s\n' "${broken_links[@]}" | head -n 10 | gum style --foreground "yellow" | log_result
+        if [ ${#broken_links[@]} -gt 10 ]; then
+            show_info "... and $((${#broken_links[@]} - 10)) more"
+        fi
+    else
+        show_success "No broken symlinks found"
+    fi
+}
+
+# Phase 5: Limine Snapshot Cleanup
+snapshot_cleanup() {
+    section_header "Phase 5: Limine Snapshot Cleanup"
+
+    if ! command_exists omarchy-snapshot; then
+        show_warning "omarchy-snapshot not found - skipping"
+        return
+    fi
+
+    gum spin --title "Checking Limine snapshots..." -- sleep 0.5
+    local snapshot_list=$(omarchy-snapshot list 2>/dev/null || true)
+
+    if [ -z "$snapshot_list" ]; then
+        show_success "No snapshots to clean up"
+        return
+    fi
+
+    show_info "Current snapshots:"
+    echo "$snapshot_list" | gum style --foreground "cyan" | log_result
+
+    # Note: Actual snapshot cleanup would require parsing omarchy-snapshot output
+    # and determining dates. For now, just inform user.
+    echo ""
+    show_info "Review snapshots manually if needed (keep minimum 3, remove >30 days old)"
+}
+
+# Phase 6: Security Audit
+security_audit() {
+    section_header "Phase 6: Security Audit"
+
+    # Check open ports
+    gum spin --title "Checking open ports..." -- sleep 0.5
+    local open_ports=$(sudo ss -tulpn | grep LISTEN)
+
+    show_info "Open ports:"
+    echo "$open_ports" | gum style --foreground "cyan" | log_result
+
+    local unexpected_ports=$(echo "$open_ports" | grep -vE ':(22|53317)\s' | grep -v '127.0.0.1' || true)
+    if [ -n "$unexpected_ports" ]; then
+        show_warning "Unexpected open ports found:"
+        echo "$unexpected_ports" | gum style --foreground "yellow" | log_result
+    else
+        show_success "Only expected ports are open (22, 53317)"
+    fi
+
+    echo ""
+
+    # Check for world-writable files
+    gum spin --title "Checking for world-writable files..." -- sleep 0.5
+    local writable_files=()
+    while IFS= read -r file; do
+        local skip=false
+        for excluded in "${EXCLUDED_DIRS[@]}"; do
+            if [[ "$file" == "$excluded"* ]]; then
+                skip=true
+                break
+            fi
+        done
+        [ "$skip" = true ] && continue
+        writable_files+=("$file")
+    done < <(find "${HOME}" -type f -perm -002 2>/dev/null | head -n 20 || true)
+
+    if [ ${#writable_files[@]} -gt 0 ]; then
+        show_warning "Found ${#writable_files[@]} world-writable file(s):"
+        printf '%s\n' "${writable_files[@]}" | gum style --foreground "yellow" | log_result
+    else
+        show_success "No world-writable files found"
+    fi
+
+    echo ""
+
+    # Check dotfiles for uncommitted changes
+    gum spin --title "Checking dotfiles repository..." -- sleep 0.5
+    if [ -d "$DOTFILES_DIR/.git" ]; then
+        cd "$DOTFILES_DIR"
+        local git_status=$(git status --porcelain 2>/dev/null || true)
+        if [ -n "$git_status" ]; then
+            show_warning "Dotfiles repository has uncommitted changes:"
+            git status --short | gum style --foreground "yellow" | log_result
+        else
+            show_success "Dotfiles repository is clean"
+        fi
+        cd - >/dev/null
+    else
+        show_warning "Dotfiles directory not a git repository"
+    fi
+}
+
+# Generate final report
+generate_report() {
+    section_header "Maintenance Summary"
+
+    # Calculate space freed in human readable format
+    local space_freed_mb=$((SPACE_FREED / 1048576))
+    local space_freed_gb=$(echo "scale=2; $SPACE_FREED / 1073741824" | bc -l 2>/dev/null || echo "0")
+
+    if [ "$space_freed_mb" -lt 1024 ]; then
+        SPACE_FREED_HUMAN="${space_freed_mb} MB"
+    else
+        SPACE_FREED_HUMAN="${space_freed_gb} GB"
+    fi
+
+    # Display summary with gum
+    gum style \
+        --border rounded \
+        --border-foreground "green" \
+        --padding "1 2" \
+        --margin "1 0" \
+        "$(gum style --foreground "green" --bold "Space Freed:")    ${SPACE_FREED_HUMAN}
+$(gum style --foreground "red" --bold "Issues Found:")   ${ISSUES_FOUND}
+$(gum style --foreground "yellow" --bold "Warnings:")      ${WARNINGS}"
+
+    # Append to report file
+    cat >> "$REPORT_FILE" <<EOF
+
+════════════════════════════════════════════════════════════════
+SUMMARY
+════════════════════════════════════════════════════════════════
+
+Space Freed:    $SPACE_FREED_HUMAN
+Issues Found:   $ISSUES_FOUND
+Warnings:       $WARNINGS
+
+Report saved to: $REPORT_FILE
+Log saved to:    $LOG_FILE
+
+Completed: $(date +"%Y-%m-%d %H:%M:%S")
+════════════════════════════════════════════════════════════════
+EOF
+
+    # Copy log to report
+    echo -e "\n\n════════════════════════════════════════════════════════════════" >> "$REPORT_FILE"
+    echo "DETAILED LOG" >> "$REPORT_FILE"
+    echo "════════════════════════════════════════════════════════════════" >> "$REPORT_FILE"
+    cat "$LOG_FILE" >> "$REPORT_FILE"
+
+    echo ""
+    gum style --foreground "green" --bold "✨ Maintenance completed!"
+    show_info "Report: $REPORT_FILE"
+    show_info "Log: $LOG_FILE"
+}
+
+# Main execution
+main() {
+    # Welcome screen
+    gum style \
+        --border double \
+        --border-foreground "magenta" \
+        --padding "1 4" \
+        --margin "1 0" \
+        --align center \
+        "$(gum style --foreground "magenta" --bold '🔧 Weekly Maintenance Script')" \
+        "" \
+        "$(gum style --foreground "cyan" "Started: $(date +'%Y-%m-%d %H:%M:%S')")"
+
+    start_report
+
+    preflight_checks
+    package_maintenance
+    cache_cleaning
+    system_health
+    snapshot_cleanup
+    security_audit
+    generate_report
+}
+
+# Run main function
+main

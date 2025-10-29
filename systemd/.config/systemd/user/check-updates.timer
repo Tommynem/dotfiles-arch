@@ -1,0 +1,16 @@
+[Unit]
+Description=Check for system updates every 2 hours
+Requires=check-updates.service
+
+[Timer]
+# Run 5 minutes after boot
+OnBootSec=5min
+
+# Run every 2 hours
+OnUnitActiveSec=2h
+
+# Persist across reboots
+Persistent=true
+
+[Install]
+WantedBy=timers.target

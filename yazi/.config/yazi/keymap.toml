@@ -1,0 +1,19 @@
+[[mgr.prepend_keymap]]
+  on = [ "g", "n" ]
+  run = "cd /mnt/nas-pool"
+  desc = "Go to NAS pool"
+
+[[mgr.prepend_keymap]]
+  on = [ "L" ]
+  run = 'shell "lazygit" --block'
+  desc = "Open lazygit in current directory"
+
+[[mgr.prepend_keymap]]
+  on = [ "g", "w" ]
+  run = "cd /home/tomge/work"
+  desc = "Go to work directory"
+
+[[mgr.prepend_keymap]]
+  on = [ "g", "p" ]
+  run = "cd /home/tomge/work/projects"
+  desc = "Go to projects directory"

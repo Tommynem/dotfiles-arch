@@ -1,0 +1,26 @@
+[Unit]
+Description=Restic encrypted backup to NAS
+After=network-online.target
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/restic-backup
+
+# Environment for the backup process
+Environment=HOME=%h
+Environment=USER=%u
+
+# CPU and I/O priority (be nice to other processes)
+Nice=10
+IOSchedulingClass=idle
+
+# Security hardening
+PrivateTmp=true
+NoNewPrivileges=true
+
+# Timeout (max 4 hours for large backups)
+TimeoutStartSec=14400
+
+[Install]
+WantedBy=default.target

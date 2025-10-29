@@ -1,0 +1,21 @@
+# Editor
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Neovim plugin managers
+nvim/.config/nvim/lazy-lock.json
+nvim/.config/nvim/plugin/
+
+# Logs
+*.log
+
+# Restic password (managed by Ansible vault)
+restic/.config/restic/password
+
+# XCompose with personal info (use .XCompose.example as template)
+xcompose/.XCompose
