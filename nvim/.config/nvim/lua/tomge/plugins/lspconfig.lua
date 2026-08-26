@@ -1,243 +1,213 @@
 -- neovim/nvim-lspconfig (+ mason + mason-lspconfig + mason-tool-installer)
+-- Neovim 0.11 / mason-lspconfig v2 pattern
+
+-- Disable LSP logging (htmx-lsp was spamming 39MB of errors)
+vim.lsp.set_log_level("OFF")
+
+-- LspAttach: capability-guarded keymaps
+-- NOTE: document_highlight is NOT here — vim-illuminate already handles it
 vim.api.nvim_create_autocmd("LspAttach", {
-	group = vim.api.nvim_create_augroup("kickstart-lsp-attach", { clear = true }),
+	group = vim.api.nvim_create_augroup("lsp-attach", { clear = true }),
 	callback = function(event)
-		-- NOTE: Remember that Lua is a real programming language, and as such it is possible
-		-- to define small helper and utility functions so you don't have to repeat yourself.
+		local client = vim.lsp.get_client_by_id(event.data.client_id)
+		if not client then
+			return
+		end
+
 		local map = function(keys, func, desc)
 			vim.keymap.set("n", keys, func, { buffer = event.buf, desc = "LSP: " .. desc })
 		end
-		map("gd", require("telescope.builtin").lsp_definitions, "[G]oto [D]efinition")
+		local cap = client.server_capabilities
 
-		map("gr", require("telescope.builtin").lsp_references, "[G]oto [R]eferences")
+		if cap.definitionProvider then
+			map("gd", require("telescope.builtin").lsp_definitions, "[G]oto [D]efinition")
+		end
 
-		map("gI", require("telescope.builtin").lsp_implementations, "[G]oto [I]mplementation")
+		if cap.referencesProvider then
+			map("gr", require("telescope.builtin").lsp_references, "[G]oto [R]eferences")
+		end
 
-		map("<leader>D", require("telescope.builtin").lsp_type_definitions, "Type [D]efinition")
+		if cap.implementationProvider then
+			map("gI", require("telescope.builtin").lsp_implementations, "[G]oto [I]mplementation")
+		end
 
-		map("<leader>ss", require("telescope.builtin").lsp_document_symbols, "[S]earch [S]ymbols")
+		if cap.typeDefinitionProvider then
+			map("<leader>D", require("telescope.builtin").lsp_type_definitions, "Type [D]efinition")
+		end
 
-		map("<leader>ws", require("telescope.builtin").lsp_dynamic_workspace_symbols, "[W]orkspace [S]ymbols")
+		if cap.documentSymbolProvider then
+			map("<leader>ss", require("telescope.builtin").lsp_document_symbols, "[S]earch [S]ymbols")
+		end
 
-		map("<leader>rn", vim.lsp.buf.rename, "[R]e[n]ame")
+		if cap.workspaceSymbolProvider then
+			map("<leader>ws", require("telescope.builtin").lsp_dynamic_workspace_symbols, "[W]orkspace [S]ymbols")
+		end
 
-		map("<leader>ca", vim.lsp.buf.code_action, "[C]ode [A]ction")
+		if cap.renameProvider then
+			map("<leader>rn", vim.lsp.buf.rename, "[R]e[n]ame")
+		end
 
-		map("K", vim.lsp.buf.hover, "Hover Documentation")
+		if cap.codeActionProvider then
+			map("<leader>ca", vim.lsp.buf.code_action, "[C]ode [A]ction")
+		end
 
-		-- WARN: This is not Goto Definition, this is Goto Declaration.
-		--  For example, in C this would take you to the header.
-		map("gD", vim.lsp.buf.declaration, "[G]oto [D]eclaration")
+		if cap.hoverProvider then
+			map("K", vim.lsp.buf.hover, "Hover Documentation")
+		end
 
-		local client = vim.lsp.get_client_by_id(event.data.client_id)
-		if client and client.server_capabilities.documentHighlightProvider then
-			vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
-				buffer = event.buf,
-				callback = vim.lsp.buf.document_highlight,
-			})
-
-			vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-				buffer = event.buf,
-				callback = vim.lsp.buf.clear_references,
-			})
+		if cap.declarationProvider then
+			map("gD", vim.lsp.buf.declaration, "[G]oto [D]eclaration")
 		end
 	end,
 })
+
+-- Capabilities (blink.cmp completion support)
 local capabilities = vim.lsp.protocol.make_client_capabilities()
--- Updated for blink.cmp instead of nvim-cmp
 local ok, blink_cmp = pcall(require, "blink.cmp")
 if ok then
 	capabilities = vim.tbl_deep_extend("force", capabilities, blink_cmp.get_lsp_capabilities())
-else
-	-- Fallback to default capabilities if blink.cmp isn't available
-	capabilities = vim.lsp.protocol.make_client_capabilities()
 end
-local servers = {
-	lua_ls = {
-		settings = {
-			Lua = {
-				completion = {
-					callSnippet = "Replace",
-				},
-			},
-		},
-	},
-	pylsp = {
-		settings = {
-			pylsp = {
-				plugins = {
-					-- Formatter settings
-					black = { enabled = true },
-					isort = { enabled = true },
 
-					-- Linter settings
-					pylint = {
-						enabled = true,
-						args = { "--max-line-length=120", "--disable=C0111" },
-					},
-					flake8 = {
-						enabled = true,
-						maxLineLength = 120,
-						ignore = { "E203", "W503" }, -- Black compatibility
-					},
-					mypy = {
-						enabled = true,
-						live_mode = true,
-						strict = false,
-					},
+-- Apply capabilities to ALL servers globally
+vim.lsp.config("*", { capabilities = capabilities })
 
-					-- Disable some default plugins
-					pycodestyle = { enabled = false }, -- Using flake8 instead
-					mccabe = { enabled = false },
-					pyflakes = { enabled = false }, -- Using flake8 instead
-					yapf = { enabled = false }, -- Using black instead
-				},
+-- Server configurations (vim.lsp.config pattern for Neovim 0.11)
+vim.lsp.config("lua_ls", {
+	settings = {
+		Lua = {
+			completion = {
+				callSnippet = "Replace",
 			},
 		},
 	},
-	ruff = {
-		-- Use the new ruff LSP server instead of the deprecated ruff_lsp
-		-- Ruff LSP handles linting, pylsp handles language features
-	},
-	-- Web Development Language Servers (2025)
-	ts_ls = {
-		settings = {
-			typescript = {
-				preferences = {
-					includeCompletionsForModuleExports = true,
-				},
-			},
-			javascript = {
-				preferences = {
-					includeCompletionsForModuleExports = true,
-				},
-			},
-		},
-	},
-	svelte = {
-		settings = {
-			svelte = {
-				plugin = {
-					typescript = {
-						enabled = true,
-						diagnostics = { enable = true },
-						hover = { enable = true },
-						documentSymbols = { enable = true },
-						completions = {
-							enable = true,
-							emmet = true,
-						},
-						codeActions = { enable = true },
-						selectionRange = { enable = true },
-						rename = { enable = true },
-					},
-					css = { enable = true },
-					html = { enable = true },
-				},
-			},
-		},
-		on_attach = function(client, bufnr)
-			-- Auto-update imports when TypeScript files change
-			vim.api.nvim_create_autocmd({"BufWritePost"}, {
-				pattern = {"*.js", "*.ts"},
-				callback = function()
-					vim.lsp.buf.code_action({
-						filter = function(action)
-							return action.kind and string.match(action.kind, "source")
-						end,
-						apply = true
-					})
-				end,
-			})
-		end,
-	},
-	tailwindcss = {
-		settings = {
-			tailwindCSS = {
-				experimental = {
-					classRegex = {
-						-- Svelte class directives
-						"class:([\\w-]+)",
-						-- Template literals
-						"tw`([^`]*)",
-						-- clsx, classnames, etc.
-						"class(?:Name)?\\s*[=:]\\s*['\"`]([^'\"`]*)['\"`]",
-					},
-				},
-			},
-		},
-	},
-	html = {},
-	cssls = {
-		settings = {
-			css = {
-				validate = true,
-				lint = {
-					unknownAtRules = "ignore", -- Ignore unknown Tailwind directives
-				},
-			},
-		},
-	},
-	jsonls = {
-		settings = {
-			json = {
-				schemas = require('schemastore').json.schemas(),
-				validate = { enable = true },
-			},
-		},
-	},
-}
+})
 
+vim.lsp.config("basedpyright", {
+	settings = {
+		basedpyright = {
+			analysis = {
+				typeCheckingMode = "standard",
+				autoImportCompletions = true,
+			},
+		},
+	},
+})
+
+vim.lsp.config("ruff", {
+	on_attach = function(client)
+		-- Disable capabilities that overlap with basedpyright
+		client.server_capabilities.hoverProvider = false
+		client.server_capabilities.definitionProvider = false
+	end,
+})
+
+vim.lsp.config("ts_ls", {
+	settings = {
+		typescript = {
+			preferences = {
+				includeCompletionsForModuleExports = true,
+			},
+		},
+		javascript = {
+			preferences = {
+				includeCompletionsForModuleExports = true,
+			},
+		},
+	},
+})
+
+vim.lsp.config("svelte", {
+	settings = {
+		svelte = {
+			plugin = {
+				typescript = {
+					enabled = true,
+					diagnostics = { enable = true },
+					hover = { enable = true },
+					documentSymbols = { enable = true },
+					completions = {
+						enable = true,
+						emmet = true,
+					},
+					codeActions = { enable = true },
+					selectionRange = { enable = true },
+					rename = { enable = true },
+				},
+				css = { enable = true },
+				html = { enable = true },
+			},
+		},
+	},
+})
+
+vim.lsp.config("tailwindcss", {
+	settings = {
+		tailwindCSS = {
+			experimental = {
+				classRegex = {
+					"class:([\\w-]+)",
+					"tw`([^`]*)",
+					"class(?:Name)?\\s*[=:]\\s*['\"`]([^'\"`]*)['\"`]",
+				},
+			},
+		},
+	},
+})
+
+vim.lsp.config("emmet_language_server", {
+	filetypes = { "html", "htmldjango", "css", "scss", "less", "javascript", "javascriptreact", "typescriptreact", "svelte", "vue" },
+})
+
+vim.lsp.config("html", {
+	filetypes = { "html", "htmldjango" },
+})
+
+vim.lsp.config("cssls", {
+	settings = {
+		css = {
+			validate = true,
+			lint = {
+				unknownAtRules = "ignore",
+			},
+		},
+	},
+})
+
+vim.lsp.config("jsonls", {
+	settings = {
+		json = {
+			schemas = require("schemastore").json.schemas(),
+			validate = { enable = true },
+		},
+	},
+})
+
+-- Mason setup
 require("mason").setup()
 
--- LSP servers only
-local lsp_servers = vim.tbl_keys(servers or {})
+-- Non-LSP tools (formatters, debuggers)
+require("mason-tool-installer").setup({
+	ensure_installed = {
+		"stylua",
+		"biome",
+		"prettier",
+		"js-debug-adapter",
+	},
+})
 
--- Formatting tools and debuggers (NOT LSP servers)
-local mason_tools = {
-	"stylua", -- Used to format Lua code
-	-- Modern web development tools (2025)
-	"biome", -- Modern ESLint + Prettier replacement (Rust-based, 15x faster)
-	"prettier", -- Fallback formatter for files Biome doesn't support
-	"js-debug-adapter", -- Modern JavaScript debugging
-}
-
--- Map server names to their mason package names
-local mason_package_names = {
-	pylsp = "python-lsp-server",
-	ruff = "ruff",
-	lua_ls = "lua-language-server",
-	-- Web development servers
-	ts_ls = "typescript-language-server",
-	svelte = "svelte-language-server",
-	tailwindcss = "tailwindcss-language-server",
-	html = "html-lsp",
-	cssls = "css-lsp",
-	jsonls = "json-lsp",
-}
-
--- Install tools (formatters, debuggers, etc.) via mason-tool-installer
-require("mason-tool-installer").setup({ ensure_installed = mason_tools })
-
+-- LSP servers: install + auto-enable (mason-lspconfig v2)
 require("mason-lspconfig").setup({
 	ensure_installed = {
-		"lua_ls", "pylsp", "ruff",
-		-- Web development servers
-		"ts_ls", "svelte", "tailwindcss", "html", "cssls", "jsonls"
+		"lua_ls",
+		"basedpyright",
+		"ruff",
+		"ts_ls",
+		"svelte",
+		"tailwindcss",
+		"html",
+		"cssls",
+		"jsonls",
+		"emmet_language_server",
 	},
-	handlers = {
-		function(server_name)
-			local server = servers[server_name] or {}
-			-- Specific setup for pyright (if you had it)
-			if server_name == "pyright" then
-				server.settings = {
-					python = {
-						pythonPath = "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3", -- Set this to your specific Python interpreter
-					},
-				}
-			end
-			server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-			require("lspconfig")[server_name].setup(server)
-		end,
-	},
+	automatic_enable = true,
 })

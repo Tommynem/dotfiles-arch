@@ -20,16 +20,20 @@ require("blink.cmp").setup({
 
 	-- Sources configuration with better prioritization
 	sources = {
-		default = { "lsp", "snippets", "path", "buffer" },
-		-- Enhanced sources for markdown files
-		markdown = { "lsp", "path", "snippets", "buffer" },
+		default = { "lazydev", "lsp", "snippets", "path", "buffer" },
 
 		providers = {
+			lazydev = {
+				name = "LazyDev",
+				module = "lazydev.integrations.blink",
+				score_offset = 100,
+			},
 			lsp = {
 				name = "lsp",
 				module = "blink.cmp.sources.lsp",
-				-- Higher score offset means higher priority
-				score_offset = 100,
+				score_offset = 90,
+				async = true,
+				timeout_ms = 2000,
 			},
 			snippets = {
 				name = "snippets",

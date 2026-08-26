@@ -189,13 +189,21 @@ require("lazy").setup({
 		end,
 	},
 	{
+		"folke/lazydev.nvim",
+		ft = "lua",
+		opts = {
+			library = {
+				{ path = "${3rd}/luv/library", words = { "vim%.uv" } },
+			},
+		},
+	},
+	{
 		"neovim/nvim-lspconfig",
 		dependencies = {
-			"williamboman/mason.nvim",
-			"williamboman/mason-lspconfig.nvim",
+			"mason-org/mason.nvim",
+			"mason-org/mason-lspconfig.nvim",
 			"WhoIsSethDaniel/mason-tool-installer.nvim",
 			{ "j-hui/fidget.nvim", opts = {} },
-			{ "folke/neodev.nvim", opts = {} },
 		},
 		config = function()
 			require("tomge.plugins.lspconfig")
@@ -252,6 +260,7 @@ require("lazy").setup({
 	},
 	{
 		"nvim-treesitter/nvim-treesitter",
+		branch = "master",  -- v1.0 "main" branch is an incompatible rewrite; pin to master
 		lazy = false,
 		priority = 900,  -- Load before telescope and other plugins that depend on it
 		build = ":TSUpdate",
@@ -527,6 +536,8 @@ require("lazy").setup({
 	},
 	{
 		"windwp/nvim-ts-autotag",
+		event = { "InsertEnter" },
+		opts = {},
 	},
 	{
 		"nvim-neotest/neotest",

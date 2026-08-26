@@ -72,4 +72,7 @@ if vim.g.neovide then
 
 	vim.g.neovide_text_gamma = 0.0
 	vim.g.neovide_text_contrast = 0.5
+
+	-- Performance: reduce idle rendering
+	vim.g.neovide_refresh_rate_idle = 5
 end
