@@ -8,6 +8,7 @@ Each subdirectory is a "package" that can be independently installed using stow:
 
 - `nvim/` - Neovim editor configuration (migrated from macOS with Linux-specific adjustments)
 - `alacritty/` - Alacritty terminal configuration overrides
+- `thunderbird/` - Profile-targeted Thunderbird dual skins, managed with `./thunderbird/manage-skin` (see `thunderbird/README.md`)
 
 ## Prerequisites
 

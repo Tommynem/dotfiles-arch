@@ -1,0 +1,1 @@
+# Invalid design contract fixture

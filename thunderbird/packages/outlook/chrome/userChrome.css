@@ -1,0 +1,1358 @@
+:root {
+  --cw-surface-app: #F8F9FA;
+  --cw-surface-pane: #FFFFFF;
+  --cw-surface-raised: #FFFFFF;
+  --cw-surface-hover: #F3F4F6;
+  --cw-surface-pressed: #E7EAEE;
+  --cw-surface-selected: #E8F2FC;
+  --cw-text-primary: #242424;
+  --cw-text-secondary: #616161;
+  --cw-text-disabled: #707070;
+  --cw-border-subtle: #EDEDED;
+  --cw-border-default: #D1D1D1;
+  --cw-border-strong: #767676;
+  --cw-accent: #0067B8;
+  --cw-accent-hover: #005A9E;
+  --cw-accent-pressed: #004578;
+  --cw-focus: #0067B8;
+  --cw-status-success: #107C10;
+  --cw-status-warning: #8A5A00;
+  --cw-status-error: #C50F1F;
+  --cw-status-info: #0067B8;
+  --cw-shadow-color: rgb(36 36 36 / 12%);
+  --cw-shadow-popover: 0 2px 8px var(--cw-shadow-color);
+  --type-command: 14px / 20px;
+  --type-list: 14px / 20px;
+  --type-meta: 12px / 16px;
+  --type-label: 12px / 16px;
+  --type-title: 16px / 22px;
+  --type-unread: inherit;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --size-icon: 16px;
+  --size-control: 32px;
+  --size-row-coworker: 44px;
+  --size-row-personal: 36px;
+  --radius-none: 0;
+  --radius-tight: 4px;
+  --radius-standard: 6px;
+  --radius-dialog: 8px;
+  --border-width: 1px;
+  --focus-width: 2px;
+  --motion-press: 100ms ease-out;
+  --motion-state: 150ms ease-out;
+  --motion-panel: 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* section: messenger-shell */
+#spacesToolbar,
+#unifiedToolbar,
+.unified-toolbar,
+#tabmail-tabs,
+#tabmail {
+  background-color: var(--cw-surface-app) !important;
+  color: var(--cw-text-primary);
+  border-color: var(--cw-border-subtle);
+  font-family: "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#spacesToolbar {
+  border-inline-end: var(--border-width) solid var(--cw-border-default);
+  padding: var(--space-2);
+}
+
+#unifiedToolbar,
+.unified-toolbar {
+  min-height: var(--size-control);
+  padding: var(--space-2) var(--space-4);
+  border-block-end: var(--border-width) solid var(--cw-border-subtle);
+}
+
+#tabmail-tabs {
+  padding-inline: var(--space-2);
+}
+
+.tabmail-tab {
+  min-height: var(--size-control);
+  padding-inline: var(--space-3);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-standard) var(--radius-standard) var(--radius-none) var(--radius-none);
+  color: var(--cw-text-secondary);
+  font: var(--type-command) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+  transition: background-color var(--motion-state), color var(--motion-state), border-color var(--motion-state);
+}
+
+.tabmail-tab[selected],
+.tabmail-tab[aria-selected="true"] {
+  background-color: var(--cw-surface-selected);
+  border-block-end-color: var(--cw-accent);
+  color: var(--cw-text-primary);
+}
+
+#spacesToolbar button,
+#unifiedToolbar button,
+.unified-toolbar button,
+.tabmail-tab:hover {
+  background-color: var(--cw-surface-hover);
+  color: var(--cw-text-primary);
+}
+
+#spacesToolbar button:active,
+#unifiedToolbar button:active,
+.unified-toolbar button:active,
+.tabmail-tab:active {
+  background-color: var(--cw-surface-pressed);
+  color: var(--cw-accent-pressed);
+  transition-duration: var(--motion-press);
+}
+
+#spacesToolbar button:focus-visible,
+#unifiedToolbar button:focus-visible,
+.unified-toolbar button:focus-visible,
+.tabmail-tab:focus-visible,
+#tabmail:focus-visible {
+  outline: var(--focus-width) solid var(--cw-focus);
+  outline-offset: var(--space-1);
+}
+
+#spacesToolbar button:disabled,
+#unifiedToolbar button:disabled,
+.unified-toolbar button:disabled,
+.tabmail-tab[disabled] {
+  color: var(--cw-text-disabled);
+  opacity: 1;
+}
+
+/* section: folder-pane */
+#folderPane,
+#folderTree {
+  background-color: var(--cw-surface-pane);
+  color: var(--cw-text-primary);
+  border-color: var(--cw-border-default);
+  font: var(--type-list) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#folderPane {
+  border-inline-end: var(--border-width) solid var(--cw-border-default);
+}
+
+#folderTree {
+  padding: var(--space-2);
+}
+
+#folderTree [selected],
+#folderTree [aria-selected="true"],
+#folderTree [current="true"] {
+  background-color: var(--cw-surface-selected);
+  border-inline-start: var(--focus-width) solid var(--cw-accent);
+  color: var(--cw-text-primary);
+}
+
+#folderTree [data-properties~="unread"],
+.unread-count,
+.new-messages {
+  --type-unread: 600;
+  color: var(--cw-accent);
+  font-weight: var(--type-unread);
+}
+
+#folderTree [data-error="true"],
+#folderPane[aria-invalid="true"] {
+  border-color: var(--cw-status-error);
+  color: var(--cw-status-error);
+}
+
+#folderTree :hover {
+  background-color: var(--cw-surface-hover);
+}
+
+#folderTree :active {
+  background-color: var(--cw-surface-pressed);
+  transition-duration: var(--motion-press);
+}
+
+#folderTree:focus-visible,
+#folderPaneWriteMessage:focus-visible {
+  outline: var(--focus-width) solid var(--cw-focus);
+  outline-offset: calc(var(--focus-width) * -1);
+}
+
+#folderPaneWriteMessage {
+  min-height: var(--size-control);
+  margin: var(--space-3);
+  padding-inline: var(--space-3);
+  border: var(--border-width) solid var(--cw-accent);
+  border-radius: var(--radius-standard);
+  background-color: var(--cw-accent);
+  color: var(--cw-surface-pane);
+  font: var(--type-command) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#folderPaneWriteMessage:disabled,
+#folderTree [disabled],
+#folderTree [aria-disabled="true"] {
+  color: var(--cw-text-disabled);
+  opacity: 1;
+}
+
+#folderPaneWriteMessage:hover {
+  background-color: var(--cw-accent-hover);
+  color: var(--cw-surface-pane);
+}
+
+#folderPaneWriteMessage:active {
+  background-color: var(--cw-accent-pressed);
+  color: var(--cw-surface-pane);
+  transition-duration: var(--motion-press);
+}
+
+/* section: thread-table */
+#threadPane,
+#threadTree,
+.table-layout {
+  background-color: var(--cw-surface-pane);
+  color: var(--cw-text-primary);
+  border-color: var(--cw-border-subtle);
+  font: var(--type-list) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#threadPane {
+  border-inline-end: var(--border-width) solid var(--cw-border-default);
+}
+
+#threadTree,
+.table-layout {
+  min-height: var(--size-row-coworker);
+}
+
+#threadTree [selected],
+.table-layout [aria-selected="true"] {
+  background-color: var(--cw-surface-selected);
+  box-shadow: inset var(--focus-width) 0 var(--cw-accent);
+}
+
+#threadTree [data-properties~="unread"],
+.table-layout [data-properties~="unread"] {
+  --type-unread: 600;
+  color: var(--cw-text-primary);
+  font-weight: var(--type-unread);
+}
+
+[data-properties~="unread"] {
+  --type-unread: 600;
+  color: var(--cw-text-primary);
+  font-weight: var(--type-unread);
+}
+
+#threadTree [data-error="true"],
+.table-layout[aria-invalid="true"] {
+  border-color: var(--cw-status-error);
+  color: var(--cw-status-error);
+}
+
+#threadTree :hover,
+.table-layout:hover,
+.tree-button-flag:hover,
+.tree-button-spam:hover {
+  background-color: var(--cw-surface-hover);
+}
+
+#threadTree :active,
+.table-layout:active,
+.tree-button-flag:active,
+.tree-button-spam:active {
+  background-color: var(--cw-surface-pressed);
+  transition-duration: var(--motion-press);
+}
+
+#threadTree:focus-visible,
+.table-layout:focus-visible,
+.tree-button-flag:focus-visible,
+.tree-button-spam:focus-visible {
+  outline: var(--focus-width) solid var(--cw-focus);
+  outline-offset: calc(var(--focus-width) * -1);
+}
+
+.tree-button-flag,
+.tree-button-spam {
+  inline-size: var(--size-control);
+  block-size: var(--size-control);
+  border: var(--border-width) solid var(--cw-border-strong);
+  border-radius: var(--radius-tight);
+  color: var(--cw-text-secondary);
+}
+
+.tree-button-flag:disabled,
+.tree-button-spam:disabled,
+.table-layout [disabled] {
+  color: var(--cw-text-disabled);
+  opacity: 1;
+}
+
+/* section: thread-card */
+.card-layout,
+.thread-card-subject-container,
+.thread-card-icon-info {
+  background-color: var(--cw-surface-pane);
+  color: var(--cw-text-primary);
+  border-color: var(--cw-border-subtle);
+  font: var(--type-list) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+.card-layout {
+  min-height: var(--size-row-coworker);
+  margin: var(--space-1) var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--cw-border-subtle);
+  border-radius: var(--radius-standard);
+}
+
+.card-layout[aria-selected="true"],
+.card-layout[selected] {
+  background-color: var(--cw-surface-selected);
+  border-inline-start: var(--focus-width) solid var(--cw-accent);
+}
+
+.card-layout[data-properties~="unread"],
+.thread-card-subject-container[data-properties~="unread"] {
+  --type-unread: 600;
+  font-weight: var(--type-unread);
+}
+
+.card-layout[data-error="true"],
+.thread-card-icon-info[aria-invalid="true"] {
+  color: var(--cw-status-error);
+  border-color: var(--cw-status-error);
+}
+
+.card-layout:hover,
+.thread-card-subject-container:hover,
+.button-star:hover,
+.attachment-icon:hover {
+  background-color: var(--cw-surface-hover);
+}
+
+.card-layout:active,
+.button-star:active,
+.attachment-icon:active {
+  background-color: var(--cw-surface-pressed);
+  transition-duration: var(--motion-press);
+}
+
+.card-layout:focus-visible,
+.thread-card-subject-container:focus-visible,
+.button-star:focus-visible,
+.attachment-icon:focus-visible {
+  outline: var(--focus-width) solid var(--cw-focus);
+  outline-offset: var(--space-1);
+}
+
+.button-star,
+.attachment-icon {
+  inline-size: var(--size-icon);
+  block-size: var(--size-icon);
+  color: var(--cw-text-secondary);
+}
+
+.button-star:disabled,
+.attachment-icon[disabled],
+.card-layout[aria-disabled="true"] {
+  color: var(--cw-text-disabled);
+  opacity: 1;
+}
+
+/* section: reader-chrome */
+#messagePane,
+#messageHeader,
+#attachmentBar,
+#attachmentList {
+  background-color: var(--cw-surface-pane);
+  color: var(--cw-text-primary);
+  border-color: var(--cw-border-subtle);
+  font-family: "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#messageHeader {
+  padding: var(--space-5);
+  border-block-end: var(--border-width) solid var(--cw-border-subtle);
+  font: var(--type-title) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#attachmentBar,
+#attachmentList {
+  padding: var(--space-2) var(--space-4);
+}
+
+#attachmentToggle {
+  min-height: var(--size-control);
+  padding-inline: var(--space-3);
+  border: var(--border-width) solid var(--cw-border-strong);
+  border-radius: var(--radius-standard);
+  background-color: var(--cw-surface-raised);
+  color: var(--cw-text-primary);
+  font: var(--type-command) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#attachmentList [selected],
+#attachmentList [aria-selected="true"] {
+  background-color: var(--cw-surface-selected);
+  border-inline-start: var(--focus-width) solid var(--cw-accent);
+}
+
+#messageHeader [data-properties~="unread"] {
+  --type-unread: 600;
+  font-weight: var(--type-unread);
+}
+
+#messageHeader[aria-invalid="true"],
+#attachmentBar[data-error="true"] {
+  border-color: var(--cw-status-error);
+  color: var(--cw-status-error);
+}
+
+#attachmentToggle:hover,
+#attachmentList :hover {
+  background-color: var(--cw-surface-hover);
+}
+
+#attachmentToggle:active,
+#attachmentList :active {
+  background-color: var(--cw-surface-pressed);
+  transition-duration: var(--motion-press);
+}
+
+#attachmentToggle:focus-visible,
+#attachmentList:focus-visible,
+#messageHeader:focus-visible {
+  outline: var(--focus-width) solid var(--cw-focus);
+  outline-offset: var(--space-1);
+}
+
+#attachmentToggle:disabled,
+#attachmentList [disabled] {
+  color: var(--cw-text-disabled);
+  opacity: 1;
+}
+
+/* section: compose-chrome */
+#compose-toolbox,
+#composeToolbar2,
+#attachmentBucket {
+  background-color: var(--cw-surface-pane);
+  color: var(--cw-text-primary);
+  border-color: var(--cw-border-subtle);
+  font-family: "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#compose-toolbox,
+#composeToolbar2 {
+  padding: var(--space-2) var(--space-4);
+  border-block-end: var(--border-width) solid var(--cw-border-subtle);
+}
+
+#msgSubject {
+  min-height: var(--size-control);
+  padding-inline: var(--space-3);
+  border: var(--border-width) solid var(--cw-border-strong);
+  border-radius: var(--radius-standard);
+  background-color: var(--cw-surface-raised);
+  color: var(--cw-text-primary);
+  font: var(--type-command) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#composeToolbar2 button {
+  min-height: var(--size-control);
+  border-radius: var(--radius-standard);
+  color: var(--cw-text-primary);
+}
+
+#composeToolbar2 button[default="true"] {
+  background-color: var(--cw-accent);
+  color: var(--cw-surface-pane);
+}
+
+#msgSubject:invalid,
+#msgSubject[aria-invalid="true"],
+#attachmentBucket[data-error="true"] {
+  border-color: var(--cw-status-error);
+  color: var(--cw-status-error);
+}
+
+#composeToolbar2 button:hover,
+#msgSubject:hover {
+  background-color: var(--cw-surface-hover);
+}
+
+#composeToolbar2 button:active,
+#msgSubject:active {
+  background-color: var(--cw-surface-pressed);
+  transition-duration: var(--motion-press);
+}
+
+#composeToolbar2 button[default="true"]:hover {
+  background-color: var(--cw-accent-hover);
+  color: var(--cw-surface-pane);
+}
+
+#composeToolbar2 button[default="true"]:active {
+  background-color: var(--cw-accent-pressed);
+  color: var(--cw-surface-pane);
+  transition-duration: var(--motion-press);
+}
+
+#composeToolbar2 button:focus-visible,
+#msgSubject:focus-visible,
+#attachmentBucket:focus-visible {
+  outline: var(--focus-width) solid var(--cw-focus);
+  outline-offset: var(--space-1);
+}
+
+#composeToolbar2 button:disabled,
+#msgSubject:disabled,
+#attachmentBucket [disabled] {
+  color: var(--cw-text-disabled);
+  opacity: 1;
+}
+
+/* section: address-book */
+#booksPane,
+#books,
+#cardsPane,
+#cards,
+#detailsPane {
+  background-color: var(--cw-surface-pane);
+  color: var(--cw-text-primary);
+  border-color: var(--cw-border-default);
+  font: var(--type-list) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#booksPane,
+#cardsPane {
+  border-inline-end: var(--border-width) solid var(--cw-border-default);
+}
+
+.bookRow {
+  min-height: var(--size-row-coworker);
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-tight);
+  color: var(--cw-text-primary);
+}
+
+.bookRow[selected],
+.bookRow[aria-selected="true"] {
+  background-color: var(--cw-surface-selected);
+  border-inline-start: var(--focus-width) solid var(--cw-accent);
+}
+
+.bookRow:hover,
+#cards :hover {
+  background-color: var(--cw-surface-hover);
+}
+
+.bookRow:active,
+#cards :active {
+  background-color: var(--cw-surface-pressed);
+  transition-duration: var(--motion-press);
+}
+
+.bookRow:focus-visible,
+#books:focus-visible,
+#cards:focus-visible,
+#detailsPane:focus-visible {
+  outline: var(--focus-width) solid var(--cw-focus);
+  outline-offset: var(--space-1);
+}
+
+.bookRow:disabled,
+.bookRow[aria-disabled="true"],
+#cards [disabled] {
+  color: var(--cw-text-disabled);
+  opacity: 1;
+}
+
+#detailsPane[aria-invalid="true"],
+#booksPane[data-error="true"] {
+  border-color: var(--cw-status-error);
+  color: var(--cw-status-error);
+}
+
+/* section: calendar-tasks */
+#calendar-list,
+#calendar-task-tree,
+#calendar-task-details {
+  background-color: var(--cw-surface-pane);
+  color: var(--cw-text-primary);
+  border-color: var(--cw-border-subtle);
+  font: var(--type-list) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#calendar-list [checked="true"],
+#calendar-task-tree [selected],
+#calendar-task-tree [aria-selected="true"] {
+  background-color: var(--cw-surface-selected);
+  border-inline-start: var(--focus-width) solid var(--cw-accent);
+}
+
+#calendar-add-task-button {
+  min-height: var(--size-control);
+  padding-inline: var(--space-3);
+  border: var(--border-width) solid var(--cw-accent);
+  border-radius: var(--radius-standard);
+  background-color: var(--cw-accent);
+  color: var(--cw-surface-pane);
+  font: var(--type-command) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+#calendar-list :hover,
+#calendar-task-tree :hover {
+  background-color: var(--cw-surface-hover);
+}
+
+#calendar-list :active,
+#calendar-task-tree :active {
+  background-color: var(--cw-surface-pressed);
+  transition-duration: var(--motion-press);
+}
+
+#calendar-list:focus-visible,
+#calendar-task-tree:focus-visible,
+#calendar-add-task-button:focus-visible,
+#calendar-task-details:focus-visible {
+  outline: var(--focus-width) solid var(--cw-focus);
+  outline-offset: var(--space-1);
+}
+
+#calendar-add-task-button:disabled,
+#calendar-list [disabled],
+#calendar-task-tree [aria-disabled="true"] {
+  color: var(--cw-text-disabled);
+  opacity: 1;
+}
+
+#calendar-add-task-button:hover {
+  background-color: var(--cw-accent-hover);
+  color: var(--cw-surface-pane);
+}
+
+#calendar-add-task-button:active {
+  background-color: var(--cw-accent-pressed);
+  color: var(--cw-surface-pane);
+  transition-duration: var(--motion-press);
+}
+
+#calendar-task-details[aria-invalid="true"],
+#calendar-list[data-error="true"] {
+  border-color: var(--cw-status-error);
+  color: var(--cw-status-error);
+}
+
+/* section: today-pane */
+#today-pane-panel,
+#agenda,
+#unifinder-todo-tree {
+  background-color: var(--cw-surface-pane);
+  color: var(--cw-text-primary);
+  border-color: var(--cw-border-subtle);
+  font: var(--type-list) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+.agenda-listitem-details {
+  min-height: var(--size-row-coworker);
+  padding: var(--space-2) var(--space-3);
+  border-block-end: var(--border-width) solid var(--cw-border-subtle);
+}
+
+.agenda-listitem-details[selected],
+.agenda-listitem-details[aria-selected="true"],
+.today-pane-cycler[current="true"] {
+  background-color: var(--cw-surface-selected);
+  border-inline-start: var(--focus-width) solid var(--cw-accent);
+}
+
+.today-pane-cycler {
+  min-height: var(--size-control);
+  border: var(--border-width) solid var(--cw-border-strong);
+  border-radius: var(--radius-tight);
+  color: var(--cw-text-secondary);
+}
+
+#agenda :hover,
+#unifinder-todo-tree :hover,
+.today-pane-cycler:hover {
+  background-color: var(--cw-surface-hover);
+}
+
+#agenda :active,
+#unifinder-todo-tree :active,
+.today-pane-cycler:active {
+  background-color: var(--cw-surface-pressed);
+  transition-duration: var(--motion-press);
+}
+
+#today-pane-panel:focus-visible,
+#agenda:focus-visible,
+#unifinder-todo-tree:focus-visible,
+.today-pane-cycler:focus-visible {
+  outline: var(--focus-width) solid var(--cw-focus);
+  outline-offset: var(--space-1);
+}
+
+.today-pane-cycler:disabled,
+#unifinder-todo-tree [disabled] {
+  color: var(--cw-text-disabled);
+  opacity: 1;
+}
+
+#today-pane-panel[aria-invalid="true"],
+#agenda[data-error="true"] {
+  border-color: var(--cw-status-error);
+  color: var(--cw-status-error);
+}
+
+/* section: settings-account */
+#preferencesbrowser,
+account-hub-container,
+.account-hub-view {
+  background-color: var(--cw-surface-pane);
+  color: var(--cw-text-primary);
+  border-color: var(--cw-border-default);
+  font-family: "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+account-hub-container,
+.account-hub-view {
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--cw-border-default);
+  border-radius: var(--radius-dialog);
+}
+
+account-hub-container [selected],
+.account-hub-view [aria-selected="true"] {
+  background-color: var(--cw-surface-selected);
+  border-inline-start: var(--focus-width) solid var(--cw-accent);
+}
+
+account-hub-container button:hover,
+.account-hub-view button:hover {
+  background-color: var(--cw-surface-hover);
+}
+
+account-hub-container button:active,
+.account-hub-view button:active {
+  background-color: var(--cw-surface-pressed);
+  transition-duration: var(--motion-press);
+}
+
+#preferencesbrowser:focus-visible,
+account-hub-container:focus-visible,
+.account-hub-view:focus-visible {
+  outline: var(--focus-width) solid var(--cw-focus);
+  outline-offset: var(--space-1);
+}
+
+account-hub-container button:disabled,
+.account-hub-view button:disabled {
+  color: var(--cw-text-disabled);
+  opacity: 1;
+}
+
+account-hub-container[aria-invalid="true"],
+.account-hub-view[data-error="true"] {
+  border-color: var(--cw-status-error);
+  color: var(--cw-status-error);
+}
+
+/* section: menus-popovers */
+menupopup,
+panel,
+#folderPaneContext,
+#editContactPanel {
+  background-color: var(--cw-surface-raised);
+  color: var(--cw-text-primary);
+  border: var(--border-width) solid var(--cw-border-default);
+  border-radius: var(--radius-dialog);
+  box-shadow: var(--cw-shadow-popover);
+  font: var(--type-command) "Segoe UI Variable", "Segoe UI", "Adwaita Sans", system-ui, sans-serif;
+}
+
+menuitem {
+  min-height: var(--size-control);
+  padding-inline: var(--space-3);
+  color: var(--cw-text-primary);
+}
+
+menupopup::part(content),
+menupopup::part(arrowscrollbox),
+menupopup::part(label-box),
+menupopup::part(icon),
+menupopup::part(label),
+menupopup::part(dropmarker) {
+  color: var(--cw-text-primary);
+}
+
+menuitem:hover,
+panel:hover,
+#folderPaneContext:hover,
+#editContactPanel:hover {
+  background-color: var(--cw-surface-hover);
+}
+
+menuitem:active,
+panel:active,
+#folderPaneContext:active,
+#editContactPanel:active {
+  background-color: var(--cw-surface-pressed);
+  transition-duration: var(--motion-press);
+}
+
+menuitem:focus-visible,
+menupopup:focus-visible,
+panel:focus-visible,
+#folderPaneContext:focus-visible,
+#editContactPanel:focus-visible {
+  outline: var(--focus-width) solid var(--cw-focus);
+  outline-offset: var(--space-1);
+}
+
+menuitem[selected],
+menuitem[checked="true"],
+menuitem[aria-selected="true"] {
+  background-color: var(--cw-surface-selected);
+  border-inline-start: var(--focus-width) solid var(--cw-accent);
+}
+
+menuitem:disabled,
+menuitem[disabled],
+panel[aria-disabled="true"] {
+  color: var(--cw-text-disabled);
+  opacity: 1;
+}
+
+menupopup[data-error="true"],
+panel[aria-invalid="true"],
+#folderPaneContext[data-error="true"],
+#editContactPanel[aria-invalid="true"] {
+  border-color: var(--cw-status-error);
+  color: var(--cw-status-error);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #spacesToolbar,
+  #unifiedToolbar,
+  .unified-toolbar,
+  .tabmail-tab,
+  #folderTree,
+  #folderPaneWriteMessage,
+  #threadTree,
+  .table-layout,
+  .card-layout,
+  #attachmentToggle,
+  #composeToolbar2,
+  #msgSubject,
+  .bookRow,
+  #calendar-list,
+  #agenda,
+  .today-pane-cycler,
+  menuitem,
+  panel {
+    transition-duration: 0ms;
+  }
+}
+
+:root {
+  color-scheme: light;
+  --color-surface-base: var(--cw-surface-app);
+  --color-surface-raised: var(--cw-surface-raised);
+  --color-surface-subtle: var(--cw-surface-app);
+  --color-surface-lower: var(--cw-surface-app);
+  --color-surface-deep: var(--cw-border-default);
+  --color-surface-border: var(--cw-border-default);
+  --color-surface-border-intense: var(--cw-border-strong);
+  --color-primary-soft: var(--cw-surface-selected);
+  --color-primary-default: var(--cw-accent);
+  --color-primary-hover: var(--cw-accent-hover);
+  --color-primary-pressed: var(--cw-accent-pressed);
+  --color-text-base: var(--cw-text-primary);
+  --color-text-secondary: var(--cw-text-secondary);
+  --color-text-muted: var(--cw-text-disabled);
+  --color-text-brand: var(--cw-accent);
+  --color-text-highlight: var(--cw-accent);
+  --color-text-critical: var(--cw-status-error);
+  --color-text-success: var(--cw-status-success);
+  --layout-background-0: var(--cw-surface-app);
+  --layout-background-1: var(--cw-surface-pane);
+  --layout-background-3: var(--cw-surface-raised);
+  --layout-color-0: var(--cw-text-primary);
+  --layout-color-1: var(--cw-text-primary);
+  --tree-view-bg: var(--cw-surface-pane);
+  --tree-view-color: var(--cw-text-primary);
+  --tree-pane-background: var(--cw-surface-pane);
+  --tree-card-background: var(--cw-surface-pane);
+  --tree-card-border: var(--cw-border-subtle);
+  --tree-card-border-hover: var(--cw-border-strong);
+  --tree-card-border-focus: var(--cw-accent);
+  --tree-card-background-current: var(--cw-surface-hover);
+  --tree-card-background-selected: var(--cw-surface-selected);
+  --tree-card-background-selected-current: var(--cw-surface-selected);
+  --listbox-hover: var(--cw-surface-hover);
+  --listbox-selected-bg: var(--cw-surface-selected);
+  --listbox-focused-selected-bg: var(--cw-surface-selected);
+  --listbox-selected-color: var(--cw-text-primary);
+  --listbox-focused-selected-color: var(--cw-text-primary);
+  --selected-item-color: var(--cw-surface-selected);
+  --selected-item-text-color: var(--cw-text-primary);
+  --sidebar-background: var(--cw-surface-pane);
+  --sidebar-color: var(--cw-text-primary);
+  --sidebar-border: var(--cw-border-default);
+  --toolbar-background-color: color-mix(in srgb, var(--cw-surface-pane) 88%, transparent);
+  --toolbar-text-color: var(--cw-text-primary);
+  --toolbar-field-background-color: var(--cw-surface-raised);
+  --toolbar-field-color: var(--cw-text-primary);
+  --toolbar-field-border-color: var(--cw-border-strong);
+  --toolbarbutton-background-color-hover: var(--cw-surface-hover);
+  --toolbarbutton-background-color-active: var(--cw-surface-pressed);
+  --toolbarbutton-hover-bordercolor: var(--cw-border-strong);
+  --toolbarbutton-active-bordercolor: var(--cw-accent);
+  --toolbarbutton-icon-fill: var(--cw-text-secondary);
+  --toolbarbutton-icon-fill-opacity: 1;
+  --button-background-color: var(--cw-surface-raised);
+  --button-text-color: var(--cw-text-primary);
+  --button-border-color: var(--cw-border-strong);
+  --button-hover-background-color: var(--cw-surface-hover);
+  --button-hover-text-color: var(--cw-text-primary);
+  --button-active-background-color: var(--cw-surface-pressed);
+  --button-primary-background-color: var(--cw-accent);
+  --button-primary-hover-background-color: var(--cw-accent-hover);
+  --button-primary-active-background-color: var(--cw-accent-pressed);
+  --button-primary-text-color: var(--cw-surface-pane);
+  --button-primary-border-color: var(--cw-accent);
+  --panel-background: var(--cw-surface-raised);
+  --panel-background-color: var(--cw-surface-raised);
+  --panel-background-color-dimmed: var(--cw-surface-app);
+  --panel-background-color-dimmed-further: var(--cw-surface-hover);
+  --spaces-bg-color: var(--cw-surface-app);
+  --spaces-button-text-color: var(--cw-text-secondary);
+  --spaces-button-active-bg-color: var(--cw-surface-selected);
+  --spaces-button-active-text-color: var(--cw-accent);
+  --spaces-icon-size: calc(var(--size-icon) + var(--space-2));
+  --spaces-padding: var(--space-3);
+  --spaces-button-padding: var(--space-2);
+  --spaces-gap: var(--space-3);
+  --spaces-container-gap: var(--space-3);
+  --spaces-total-width: calc(var(--space-8) * 2);
+  --list-item-min-height: var(--size-row-coworker);
+  --list-item-buttons-size: calc(var(--size-control) + var(--space-3));
+  --tree-card-content-inline: var(--space-3);
+  --tree-header-cell-padding: var(--space-3);
+  --thread-pane-header-padding: var(--space-3);
+  --thread-pane-container-gap: var(--space-2);
+  --button-border-radius: var(--radius-dialog);
+  --focus-outline-color: var(--cw-focus);
+  --focus-outline: var(--focus-width) solid var(--cw-focus);
+  --focus-outline-offset: var(--space-1);
+  --tabs-toolbar-background-color: color-mix(in srgb, var(--cw-surface-app) 84%, transparent);
+  --tabs-toolbar-box-shadow: none;
+  --tabline-color: var(--cw-accent);
+}
+
+#messengerWindow,
+#tabmail,
+#folderPane,
+#threadPane,
+#messagePane,
+#compose-toolbox,
+#booksPane,
+#cardsPane,
+#detailsPane,
+#calendar-list,
+#calendar-task-tree,
+#calendar-task-details,
+#today-pane-panel,
+#preferencesbrowser,
+account-hub-container,
+.account-hub-view {
+  background-color: var(--cw-surface-pane) !important;
+  color: var(--cw-text-primary) !important;
+  border-color: var(--cw-border-default) !important;
+}
+
+#messengerWindow,
+#tabmail,
+#spacesToolbar,
+#tabmail-tabs,
+#unifiedToolbarContainer,
+#unifiedToolbar,
+.unified-toolbar,
+#folderPaneHeaderBar,
+#threadPaneHeaderBar,
+#messageHeader,
+#attachmentBar,
+#attachmentList,
+#composeToolbar2,
+#threadPaneNotificationBox,
+#mail-notification-top,
+#messenger-notification-bottom,
+#compose-notification-bottom,
+.in-app-notification-root,
+.inline-notification-container,
+#status-bar {
+  background-color: color-mix(in srgb, var(--cw-surface-pane) 88%, transparent) !important;
+  color: var(--cw-text-primary) !important;
+  border-color: var(--cw-border-default) !important;
+  backdrop-filter: blur(var(--space-3));
+  box-shadow: var(--cw-shadow-popover);
+}
+
+#spacesToolbar {
+  inline-size: var(--spaces-total-width) !important;
+  min-inline-size: var(--spaces-total-width) !important;
+  padding: var(--space-3) !important;
+  gap: var(--space-3) !important;
+}
+
+#spacesToolbar button,
+#unifiedToolbar button,
+.unified-toolbar button,
+#folderPaneWriteMessage,
+#attachmentToggle,
+#composeToolbar2 button,
+#calendar-add-task-button,
+.tree-button-flag,
+.tree-button-spam,
+.button-star,
+.attachment-icon,
+.today-pane-cycler {
+  min-inline-size: calc(var(--size-control) + var(--space-3));
+  min-block-size: calc(var(--size-control) + var(--space-3));
+  background-color: var(--cw-surface-raised) !important;
+  color: var(--cw-text-primary) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border: var(--border-width) solid var(--cw-border-strong) !important;
+  border-radius: var(--radius-dialog) !important;
+  box-shadow: none;
+  transition: background-color var(--motion-state), color var(--motion-state), border-color var(--motion-state), box-shadow var(--motion-state);
+}
+
+#spacesToolbar button:hover,
+#unifiedToolbar button:hover,
+.unified-toolbar button:hover,
+#folderPaneWriteMessage:hover,
+#attachmentToggle:hover,
+#composeToolbar2 button:hover,
+#calendar-add-task-button:hover,
+.tree-button-flag:hover,
+.tree-button-spam:hover,
+.button-star:hover,
+.attachment-icon:hover,
+.today-pane-cycler:hover {
+  background-color: var(--cw-surface-hover) !important;
+  color: var(--cw-text-primary) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-border-strong) !important;
+  box-shadow: var(--cw-shadow-popover);
+}
+
+#spacesToolbar button:active,
+#unifiedToolbar button:active,
+.unified-toolbar button:active,
+#folderPaneWriteMessage:active,
+#attachmentToggle:active,
+#composeToolbar2 button:active,
+#calendar-add-task-button:active,
+.tree-button-flag:active,
+.tree-button-spam:active,
+.button-star:active,
+.attachment-icon:active,
+.today-pane-cycler:active {
+  background-color: var(--cw-surface-pressed) !important;
+  color: var(--cw-text-primary) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-accent) !important;
+  box-shadow: inset 0 0 0 var(--focus-width) var(--cw-accent);
+}
+
+#spacesToolbar button:disabled,
+#unifiedToolbar button:disabled,
+.unified-toolbar button:disabled,
+#folderPaneWriteMessage:disabled,
+#attachmentToggle:disabled,
+#composeToolbar2 button:disabled,
+#calendar-add-task-button:disabled,
+.tree-button-flag:disabled,
+.tree-button-spam:disabled,
+.button-star:disabled,
+.attachment-icon:disabled,
+.today-pane-cycler:disabled {
+  background-color: var(--cw-surface-app) !important;
+  color: var(--cw-text-disabled) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-border-default) !important;
+  box-shadow: none;
+}
+
+#folderPaneWriteMessage,
+#composeToolbar2 button[default="true"],
+#calendar-add-task-button {
+  background-color: var(--cw-accent) !important;
+  color: var(--cw-surface-pane) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-accent) !important;
+}
+
+#folderPaneWriteMessage:hover,
+#composeToolbar2 button[default="true"]:hover,
+#calendar-add-task-button:hover {
+  background-color: var(--cw-accent-hover) !important;
+  color: var(--cw-surface-pane) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-accent-hover) !important;
+}
+
+#folderPaneWriteMessage:active,
+#composeToolbar2 button[default="true"]:active,
+#calendar-add-task-button:active {
+  background-color: var(--cw-accent-pressed) !important;
+  color: var(--cw-surface-pane) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-accent-pressed) !important;
+  box-shadow: inset 0 0 0 var(--focus-width) var(--cw-accent-pressed);
+}
+
+.tabmail-tab {
+  min-block-size: calc(var(--size-control) + var(--space-3));
+  background-color: var(--cw-surface-app) !important;
+  color: var(--cw-text-secondary) !important;
+  border: var(--border-width) solid var(--cw-border-default) !important;
+  border-radius: var(--radius-dialog) var(--radius-dialog) var(--radius-none) var(--radius-none) !important;
+  box-shadow: none;
+  transition: background-color var(--motion-state), color var(--motion-state), border-color var(--motion-state), box-shadow var(--motion-state);
+}
+
+.tabmail-tab:hover {
+  background-color: var(--cw-surface-hover) !important;
+  color: var(--cw-text-primary) !important;
+  border-color: var(--cw-border-strong) !important;
+  box-shadow: var(--cw-shadow-popover);
+}
+
+.tabmail-tab:active {
+  background-color: var(--cw-surface-pressed) !important;
+  color: var(--cw-text-primary) !important;
+  border-color: var(--cw-accent) !important;
+  box-shadow: inset 0 0 0 var(--focus-width) var(--cw-accent);
+}
+
+.tabmail-tab[selected],
+.tabmail-tab[aria-selected="true"] {
+  background-color: var(--cw-surface-selected) !important;
+  color: var(--cw-text-primary) !important;
+  border-color: var(--cw-accent) !important;
+  box-shadow: inset 0 calc(var(--focus-width) * -1) 0 var(--cw-accent);
+}
+
+#folderPane,
+#folderTree {
+  --list-item-min-height: var(--size-row-coworker);
+  padding-inline: var(--space-3) !important;
+}
+
+#threadPane,
+#threadTree,
+.table-layout {
+  --list-item-min-height: calc(var(--size-row-coworker) + var(--space-6));
+  --tree-header-table-height: calc(var(--size-control) + var(--space-5));
+  padding-inline: var(--space-3) !important;
+}
+
+.card-layout {
+  min-block-size: calc(var(--size-row-coworker) + var(--space-6)) !important;
+  margin: var(--space-2) var(--space-3) !important;
+  padding: var(--space-4) !important;
+  border-radius: var(--space-3) !important;
+}
+
+#folderTree [selected],
+#folderTree [aria-selected="true"],
+#folderTree [current="true"],
+#threadTree [selected],
+.table-layout[aria-selected="true"],
+.card-layout[selected],
+.card-layout[aria-selected="true"],
+.bookRow[selected],
+.bookRow[aria-selected="true"],
+#calendar-task-tree [selected],
+#calendar-task-tree [aria-selected="true"],
+.agenda-listitem-details[selected],
+.agenda-listitem-details[aria-selected="true"] {
+  background-color: var(--cw-surface-selected) !important;
+  color: var(--cw-text-primary) !important;
+  border-color: var(--cw-accent) !important;
+  box-shadow: inset var(--focus-width) 0 0 var(--cw-accent);
+}
+
+#folderTree :hover,
+#threadTree :hover,
+.table-layout:hover,
+.card-layout:hover,
+.bookRow:hover,
+#cards :hover,
+#calendar-list :hover,
+#calendar-task-tree :hover,
+#agenda :hover,
+#unifinder-todo-tree :hover,
+menuitem:hover {
+  background-color: var(--cw-surface-hover) !important;
+  color: var(--cw-text-primary) !important;
+  border-color: var(--cw-border-strong) !important;
+  box-shadow: var(--cw-shadow-popover);
+}
+
+#folderPaneSplitter,
+#messagePaneSplitter,
+#listSplitter,
+#today-pane-splitter,
+#attachment-splitter,
+#contactsSplitter,
+#headersSplitter,
+#attachmentSplitter,
+splitter,
+hr[is="pane-splitter"] {
+  background-color: var(--cw-surface-app) !important;
+  color: var(--cw-text-secondary) !important;
+  border-color: var(--cw-border-default) !important;
+}
+
+menupopup,
+panel,
+#notification-popup,
+#notification-popup-box,
+#folderPaneContext,
+#editContactPanel {
+  background-color: color-mix(in srgb, var(--cw-surface-raised) 92%, transparent) !important;
+  color: var(--cw-text-primary) !important;
+  border-color: var(--cw-border-strong) !important;
+  border-radius: var(--space-3) !important;
+  box-shadow: var(--cw-shadow-popover);
+  backdrop-filter: blur(var(--space-3));
+}
+
+#msgSubject,
+#qfb-qs-textbox,
+search-bar,
+global-search-bar {
+  min-block-size: calc(var(--size-control) + var(--space-3));
+  background-color: var(--cw-surface-raised) !important;
+  color: var(--cw-text-primary) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border: var(--border-width) solid var(--cw-border-strong) !important;
+  border-radius: var(--radius-dialog) !important;
+  box-shadow: none;
+  transition: background-color var(--motion-state), color var(--motion-state), border-color var(--motion-state), box-shadow var(--motion-state);
+}
+
+#msgSubject:hover,
+#qfb-qs-textbox:hover,
+search-bar:hover,
+global-search-bar:hover {
+  background-color: var(--cw-surface-hover) !important;
+  color: var(--cw-text-primary) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-border-strong) !important;
+  box-shadow: var(--cw-shadow-popover);
+}
+
+#msgSubject:active,
+#qfb-qs-textbox:active,
+search-bar:active,
+global-search-bar:active {
+  background-color: var(--cw-surface-pressed) !important;
+  color: var(--cw-text-primary) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-accent) !important;
+  box-shadow: inset 0 0 0 var(--focus-width) var(--cw-accent);
+}
+
+#msgSubject:disabled,
+#qfb-qs-textbox[disabled],
+search-bar[disabled],
+global-search-bar[disabled] {
+  background-color: var(--cw-surface-app) !important;
+  color: var(--cw-text-disabled) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-border-default) !important;
+  box-shadow: none;
+}
+
+#folderTree [selected]:hover,
+#folderTree [aria-selected="true"]:hover,
+#folderTree [current="true"]:hover,
+#threadTree [selected]:hover,
+.table-layout[aria-selected="true"]:hover,
+.card-layout[selected]:hover,
+.card-layout[aria-selected="true"]:hover,
+.bookRow[selected]:hover,
+.bookRow[aria-selected="true"]:hover,
+#calendar-task-tree [selected]:hover,
+#calendar-task-tree [aria-selected="true"]:hover,
+.agenda-listitem-details[selected]:hover,
+.agenda-listitem-details[aria-selected="true"]:hover {
+  background-color: var(--cw-surface-selected) !important;
+  color: var(--cw-text-primary) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-accent) !important;
+  box-shadow: inset var(--focus-width) 0 0 var(--cw-accent);
+}
+
+#folderTree :active,
+#threadTree :active,
+.table-layout:active,
+.card-layout:active,
+.bookRow:active,
+#cards :active,
+#calendar-list :active,
+#calendar-task-tree :active,
+#agenda :active,
+#unifinder-todo-tree :active,
+menuitem:active {
+  background-color: var(--cw-surface-pressed) !important;
+  color: var(--cw-text-primary) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-accent) !important;
+  box-shadow: inset 0 0 0 var(--focus-width) var(--cw-accent);
+}
+
+#folderTree [disabled],
+#folderTree [aria-disabled="true"],
+#threadTree [disabled],
+.table-layout [disabled],
+.card-layout[aria-disabled="true"],
+.bookRow[aria-disabled="true"],
+#calendar-list [disabled],
+#calendar-task-tree [aria-disabled="true"],
+#unifinder-todo-tree [disabled],
+menuitem[disabled] {
+  background-color: var(--cw-surface-app) !important;
+  color: var(--cw-text-disabled) !important;
+  fill: currentColor;
+  stroke: currentColor;
+  border-color: var(--cw-border-default) !important;
+  box-shadow: none;
+}
