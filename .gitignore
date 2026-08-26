@@ -19,3 +19,34 @@ restic/.config/restic/password
 
 # XCompose with personal info (use .XCompose.example as template)
 xcompose/.XCompose
+
+# Backup files
+*.bak.*
+*.bak
+
+# Generated omarchy state
+.omo/
+
+# Generated tool wrappers/binaries (installed by omarchy/tools, not hand-written)
+bin/.local/bin/basedpyright
+bin/.local/bin/basedpyright-langserver
+bin/.local/bin/codegraph
+bin/.local/bin/codex
+bin/.local/bin/copilot
+bin/.local/bin/cursor
+bin/.local/bin/cursor.AppImage
+bin/.local/bin/djlint
+bin/.local/bin/gemini
+bin/.local/bin/ghui
+bin/.local/bin/opencode
+bin/.local/bin/pi
+bin/.local/bin/playwright-cli
+bin/.local/bin/antigravity
+bin/.local/bin/zed
+bin/.local/bin/gnome-keyring-daemon-wrapper.sh
+
+# Generated compat config
+hypr/.config/hypr/omarchy-looknfeel-compat.conf
+
+# Setup scripts (machine-specific)
+laptop-setup.sh

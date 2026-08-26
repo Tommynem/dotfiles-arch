@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${DOTFILES_REPO:-$(pwd)}"
+home_dir="${HOME}"
+
+usage() {
+  printf 'Usage: %s [--repo PATH] [--home PATH]\n' "${0##*/}"
+  printf '\nRead-only audit of repo-managed dotfiles versus active files in HOME.\n'
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --repo)
+      repo="$2"
+      shift 2
+      ;;
+    --home)
+      home_dir="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'Unknown argument: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+cd "$repo"
+
+if [[ ! -d .git ]]; then
+  printf 'ERROR: %s is not a git repository\n' "$repo" >&2
+  exit 1
+fi
+
+checksum() {
+  sha256sum "$1" | cut -d ' ' -f 1
+}
+
+target_for_relpath() {
+  local rel="$1"
+  local package rest
+
+  package="${rel%%/*}"
+  [[ "$package" == "$rel" ]] && return 1
+  rest="${rel#*/}"
+
+  case "$rest" in
+    .config/*|.local/*|.XCompose|.XCompose.example|.zshrc|.gitconfig|.gitignore_global)
+      printf '%s/%s\n' "$home_dir" "$rest"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+printf 'Dotfiles audit\n'
+printf '==============\n'
+printf 'Host: %s\n' "$(hostname)"
+printf 'Repo: %s\n' "$(pwd)"
+printf 'Home: %s\n' "$home_dir"
+printf '\n'
+
+printf 'Git status\n'
+printf -- '----------\n'
+if git status --short | sed 's/^/  /'; then
+  :
+fi
+printf '\n'
+
+printf 'Managed file audit\n'
+printf -- '------------------\n'
+printf '%-12s  %-8s  %s\n' 'STATE' 'CONTENT' 'PATH'
+
+tmp_file="$(mktemp)"
+trap 'rm -f "$tmp_file"' EXIT
+git ls-files -co --exclude-standard > "$tmp_file"
+
+while IFS= read -r rel; do
+  [[ -f "$rel" ]] || continue
+
+  target="$(target_for_relpath "$rel" || true)"
+  [[ -n "${target:-}" ]] || continue
+
+  state='missing'
+  content='n/a'
+
+  if [[ -e "$target" || -L "$target" ]]; then
+    if [[ -L "$target" ]]; then
+      resolved="$(readlink -f "$target" || true)"
+      repo_file="$(readlink -f "$rel")"
+      if [[ "$resolved" == "$repo_file" ]]; then
+        state='linked'
+      else
+        state='otherlink'
+      fi
+    else
+      state='copy'
+    fi
+
+    if [[ -f "$target" && -f "$rel" ]]; then
+      if [[ "$(checksum "$target")" == "$(checksum "$rel")" ]]; then
+        content='same'
+      else
+        content='diff'
+      fi
+    fi
+  fi
+
+  printf '%-12s  %-8s  %s -> %s\n' "$state" "$content" "$rel" "$target"
+done < "$tmp_file"
+
+printf '\n'
+printf 'Summary hints\n'
+printf -- '-------------\n'
+printf 'linked    active file is the expected repo symlink\n'
+printf 'copy      active file exists but is not symlinked through Stow\n'
+printf 'diff      repo file and active file differ; reconcile before stowing\n'
+printf 'missing   repo has a managed file but HOME does not\n'
+printf '\n'
+printf 'Remote usage example:\n'
+printf '  ssh tomarchy-ts "cd %q && scripts/audit-dotfiles"\n' "$repo"
