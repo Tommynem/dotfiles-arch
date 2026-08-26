@@ -28,56 +28,5 @@
       "enabled": true
     }
   },
-  "permission": {
-    "read": "allow",
-    "glob": "allow",
-    "grep": "allow",
-    "list": "allow",
-    "websearch": "allow",
-    "webfetch": "allow",
-    "todowrite": "allow",
-    "question": "allow",
-    "lsp": "allow",
-    "task": "allow",
-    "skill": "allow",
-    "edit": "allow",
-    "external_directory": {
-      "*": "allow",
-      "~/.ssh/**": "deny",
-      "~/.gnupg/**": "deny",
-      "~/secrets/**": "deny",
-      "~/.config/opencode/auth*": "deny"
-    },
-    "bash": {
-      "*": "allow",
-      "rm -rf *": "ask",
-      "rm -fr *": "ask",
-      "sudo *": "ask",
-      "sudo rm *": "deny",
-      "su *": "ask",
-      "doas *": "ask",
-      "chmod -R 777 *": "deny",
-      "chown -R *": "ask",
-      "dd *": "deny",
-      "mkfs*": "deny",
-      "fdisk *": "deny",
-      "parted *": "deny",
-      "wipefs *": "deny",
-      "shred *": "deny",
-      "systemctl *": "ask",
-      "service *": "ask",
-      "killall *": "ask",
-      "pkill *": "ask",
-      "docker system prune *": "ask",
-      "docker volume rm *": "ask",
-      "docker rm *": "ask",
-      "docker rmi *": "ask",
-      "kubectl delete *": "ask",
-      "helm uninstall *": "ask",
-      "terraform apply *": "ask",
-      "terraform destroy *": "ask",
-      "pulumi up *": "ask",
-      "pulumi destroy *": "ask"
-    }
-  }
+  "permission": "allow"
 }
