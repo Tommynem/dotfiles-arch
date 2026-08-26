@@ -10,6 +10,23 @@ Each subdirectory is a "package" that can be independently installed using stow:
 - `alacritty/` - Alacritty terminal configuration overrides
 - `thunderbird/` - Profile-targeted Thunderbird dual skins, managed with `./thunderbird/manage-skin` (see `thunderbird/README.md`)
 
+## Omarchy 4 (Quattro) cleanup — pending
+
+Do **not** delete these yet. This repository retains them while the Quattro
+migration is verified on both machines:
+
+- `mako/` — queued for deletion. Omarchy 4 replaces Mako notifications with
+  its Quickshell-based shell.
+- `hypr/.config/hypr/autostart.conf`, `bindings.conf`, `hypridle.conf`,
+  `hyprland.conf`, `hyprlock.conf`, `input.conf`, `looknfeel.conf`, and
+  `monitors.conf` — legacy pre-Quattro configuration, superseded by the Lua
+  migration in the same package. Keep until the new Lua configuration is
+  confirmed on both machines.
+
+Keep the `hypr/` package itself: its Lua files remain the active Omarchy 4
+configuration. `envs.conf`, `hyprsunset.conf`, and `xdph.conf` need a separate
+review before any removal. Source: [Omarchy v4.0.0 release notes](https://github.com/basecamp/omarchy/releases/tag/v4.0.0).
+
 ## Prerequisites
 
 - Arch Linux (Omarchy)
