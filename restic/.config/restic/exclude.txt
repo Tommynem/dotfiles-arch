@@ -41,6 +41,13 @@
 # Docker and container data
 /home/tomge/.docker/
 
+# Steam game payloads. Keep Steam config/userdata backed up, but skip
+# reinstallable game binaries, shader caches, and download cache.
+/home/tomge/.local/share/Steam/steamapps/
+/home/tomge/.local/share/Steam/appcache/
+/home/tomge/.local/share/Steam/config/htmlcache/
+/home/tomge/.local/share/Steam/package/
+
 # Mise (development environment) downloads and cache
 /home/tomge/.local/share/mise/downloads/
 /home/tomge/.local/share/mise/installs/*/src/

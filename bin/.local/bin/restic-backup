@@ -61,16 +61,15 @@ log "Starting restic backup"
 log "Repository: $RESTIC_REPOSITORY"
 log "Source: $BACKUP_SOURCE"
 
-# Check for stale locks (e.g., from system crash)
+# Clear stale locks from previous interrupted runs.
+# `restic list locks` exits successfully even when locks exist, so running
+# restic's own stale-lock cleanup directly is the reliable preflight.
 log "Checking for stale locks..."
-if ! restic list locks --quiet 2>&1 | tee -a "$LOG_FILE"; then
-    log_warning "Repository may have stale locks, attempting unlock..."
-    if restic unlock 2>&1 | tee -a "$LOG_FILE"; then
-        log "Stale lock removed successfully"
-    else
-        log_error "Failed to remove stale lock"
-        exit 1
-    fi
+if restic unlock 2>&1 | tee -a "$LOG_FILE"; then
+    log "Stale lock check completed"
+else
+    log_error "Failed to check/remove stale locks"
+    exit 1
 fi
 
 # Create backup

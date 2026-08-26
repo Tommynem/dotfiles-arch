@@ -42,6 +42,18 @@ alias h='cd ~'
 alias htop="btop"
 alias top="btop"
 alias yay='yay --editmenu --cleanafter'
+vpn() {
+  sudo systemctl start wg-quick@protonvpn.service || return
+  sudo tailscale set --accept-dns=true >/dev/null || print -u2 "tailscale: could not reapply MagicDNS"
+  sudo resolvectl flush-caches 2>/dev/null || true
+  systemctl --no-pager --plain status wg-quick@protonvpn.service
+}
+
+vpnoff() {
+  sudo systemctl stop wg-quick@protonvpn.service || return
+  sudo tailscale set --accept-dns=true >/dev/null || print -u2 "tailscale: could not reapply MagicDNS"
+  sudo resolvectl flush-caches 2>/dev/null || true
+}
 
 # File operations
 alias ls='ls --color=auto'
@@ -71,31 +83,6 @@ alias open="xdg-open"
 
 # Worktree manager (wt script)
 alias wt="/home/tomge/work/wt-arch"
-
-# =============================================================================
-# Encrypted Directories (gocryptfs)
-# =============================================================================
-
-# Work directory
-alias work-unlock='gocryptfs -idle 15m ~/encrypted/work ~/work'
-alias work-lock='fusermount -u ~/work'
-alias work-status='mountpoint -q ~/work && echo "🔓 Work: Unlocked (auto-locks after 15min idle)" || echo "🔒 Work: Locked"'
-
-# Personal directory
-alias personal-unlock='gocryptfs -idle 15m ~/encrypted/personal ~/personal'
-alias personal-lock='fusermount -u ~/personal'
-alias personal-status='mountpoint -q ~/personal && echo "🔓 Personal: Unlocked (auto-locks after 15min idle)" || echo "🔒 Personal: Locked"'
-
-# Combined shortcuts
-alias unlock-all='work-unlock && personal-unlock'
-alias lock-all='work-lock; personal-lock'
-alias status-all='work-status && personal-status'
-
-# Eza (modern ls replacement - check if installed)
-if command -v eza &> /dev/null; then
-    alias l='eza --color=always --long --git --no-filesize --icons=always --no-time --no-user --no-permissions --group-directories-first'
-    alias ll='eza --color=always --long --all --git'
-fi
 
 # Github CLI aliases
 if command -v gh &> /dev/null; then
@@ -288,6 +275,12 @@ ZSH_THEME="spaceship"
 plugins=(git zsh-autosuggestions sudo web-search zsh-magic-dashboard)
 source "$ZSH/oh-my-zsh.sh"
 
+# Eza aliases (MUST be after oh-my-zsh, which overwrites l/ll with plain ls)
+if command -v eza &> /dev/null; then
+    alias l='eza --color=always --long --git --no-filesize --icons=always --no-time --no-user --no-permissions --group-directories-first'
+    alias ll='eza --color=always --long --all --git --icons=always --group-directories-first'
+fi
+
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # Initialize atuin AFTER oh-my-zsh to prevent keybinding conflicts
@@ -310,7 +303,13 @@ esac
 export PATH="$PATH:/home/tomge/.local/bin:/home/tomge/.cargo/bin"
 
 # ssh agent autostart
-eval $(keychain --eval --quiet id_ed25519_omarchy_general)
-eval $(keychain --eval --quiet id_ed25519_github)
-eval $(keychain --eval --quiet id_ed25519_servers)
+if command -v keychain >/dev/null 2>&1; then
+  _keychain_socket="${XDG_RUNTIME_DIR:-/run/user/$UID}/keychain-ssh-agent.socket"
+  eval "$(keychain --eval --quiet --nogui --ssh-agent-socket "$_keychain_socket" \
+    id_ed25519_omarchy_laptop \
+    id_ed25519_github_laptop \
+    id_ed25519_servers_laptop)"
+  unset _keychain_socket
+fi
 eval "$(mise activate zsh)"
+export PATH=$HOME/go/bin:$PATH
