@@ -1,7 +1,8 @@
 ---
 description: Hermes - Swift Agent. Use for small, low-risk edits, repo hygiene, git cleanup/commit prep, tiny config/documentation changes, and direct answers where deep planning is overkill.
 mode: primary
-model: openai/gpt-5.6-luna
+model: openai/gpt-5.6-terra
+variant: low
 color: secondary
 steps: 48
 ---
