@@ -1,0 +1,240 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly SESSION_NAME="ssh-access"
+readonly SOCKET_PATH="${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}/ssh-agent.socket"
+readonly SELF_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+
+die() {
+    printf 'ssh-access: %s\n' "$*" >&2
+    exit 1
+}
+
+usage() {
+    cat <<'EOF'
+Usage: ssh-access <command>
+
+Commands:
+  setup                         Enable the OpenSSH user socket and start tmux
+  attach                        Attach to the human-controlled unlock window
+  status                        Show socket, key, session, and window status
+  open <host> [label]           Open one isolated, interactive SSH window
+  close-window --confirmed-by-user <window-id> <owner-token>
+                                Close a verified AI window after user approval
+EOF
+}
+
+require_commands() {
+    local command_name
+    for command_name in ssh ssh-add systemctl tmux zsh; do
+        command -v "$command_name" >/dev/null || die "missing required command: $command_name"
+    done
+}
+
+internal_command() {
+    local action=$1 argument=${2:-} command
+    printf -v command '%q %q %q' "$SELF_PATH" "$action" "$argument"
+    printf '%s\n' "$command"
+}
+
+configure_session_environment() {
+    local variable
+    local -a update_environment=()
+
+    while IFS= read -r variable; do
+        case "$variable" in
+            SSH_AUTH_SOCK|SSH_AGENT_PID|'') ;;
+            *) update_environment+=("$variable") ;;
+        esac
+    done < <(tmux show-options -g -v update-environment)
+
+    tmux set-option -t "$SESSION_NAME" update-environment "${update_environment[*]}"
+    tmux set-environment -t "$SESSION_NAME" SSH_AUTH_SOCK "$SOCKET_PATH"
+    tmux set-environment -u -t "$SESSION_NAME" SSH_AGENT_PID 2>/dev/null || true
+}
+
+start_socket() {
+    systemctl --user start ssh-agent.socket
+    [[ -S "$SOCKET_PATH" ]] || die "OpenSSH agent socket was not created at $SOCKET_PATH"
+}
+
+ensure_session() {
+    local command unlock_id managed
+
+    start_socket
+
+    if tmux has-session -t "=$SESSION_NAME" 2>/dev/null; then
+        managed="$(tmux show-option -qv -t "$SESSION_NAME" @ssh_access_managed)"
+        [[ "$managed" == "1" ]] || die "tmux session '$SESSION_NAME' exists but is not managed by ssh-access"
+    else
+        command="$(internal_command _unlock-shell)"
+        unlock_id="$(tmux new-session -d -P -F '#{window_id}' -s "$SESSION_NAME" -n unlock "$command")"
+        tmux set-option -t "$SESSION_NAME" @ssh_access_managed 1
+        tmux set-option -t "$SESSION_NAME" @ssh_access_socket "$SOCKET_PATH"
+        tmux set-option -t "$SESSION_NAME" @ssh_access_unlock_window "$unlock_id"
+        tmux set-option -w -t "$unlock_id" @ssh_access_role unlock
+        tmux set-option -w -t "$unlock_id" @ssh_access_owner human
+    fi
+
+    configure_session_environment
+}
+
+agent_identities() {
+    SSH_AUTH_SOCK="$SOCKET_PATH" ssh-add -l
+}
+
+require_loaded_keys() {
+    local output status
+
+    set +e
+    output="$(agent_identities 2>&1)"
+    status=$?
+    set -e
+
+    if (( status != 0 )); then
+        printf '%s\n' "$output" >&2
+        die "no usable identities are loaded; ask the user to run 'ssh-access attach' and unlock keys"
+    fi
+}
+
+setup() {
+    systemctl --user enable --now ssh-agent.socket
+    ensure_session
+    printf 'OpenSSH socket: %s\n' "$SOCKET_PATH"
+    printf 'tmux session: %s\n' "$SESSION_NAME"
+    printf 'Next: ssh-access attach\n'
+}
+
+attach() {
+    local unlock_id
+
+    ensure_session
+    unlock_id="$(tmux show-option -qv -t "$SESSION_NAME" @ssh_access_unlock_window)"
+    [[ -n "$unlock_id" ]] || die "managed session has no recorded unlock window"
+    tmux select-window -t "$unlock_id"
+
+    if [[ -n "${TMUX:-}" ]]; then
+        exec tmux switch-client -t "$SESSION_NAME"
+    fi
+    exec tmux attach-session -t "$SESSION_NAME"
+}
+
+status() {
+    local identity_status=0
+
+    printf 'socket unit: '
+    systemctl --user is-active ssh-agent.socket || true
+    printf 'socket path: %s (%s)\n' "$SOCKET_PATH" "$([[ -S "$SOCKET_PATH" ]] && printf ready || printf missing)"
+
+    printf 'identities:\n'
+    if [[ -S "$SOCKET_PATH" ]]; then
+        SSH_AUTH_SOCK="$SOCKET_PATH" ssh-add -l || identity_status=$?
+    else
+        printf '  unavailable\n'
+        identity_status=2
+    fi
+
+    if tmux has-session -t "=$SESSION_NAME" 2>/dev/null; then
+        printf 'tmux session: running\n'
+        tmux list-windows -t "$SESSION_NAME" -F '  #{window_id} #{window_name} role=#{@ssh_access_role} host=#{@ssh_access_host}'
+    else
+        printf 'tmux session: stopped\n'
+    fi
+
+    return "$identity_status"
+}
+
+open_host() {
+    local host=${1:-} label=${2:-opencode}
+    local safe_host name command window_id owner_token
+
+    [[ "$host" =~ ^[A-Za-z0-9][A-Za-z0-9._@:-]{0,127}$ ]] || die "host must be an SSH alias, hostname, address, or user@host without options"
+    [[ "$label" =~ ^[A-Za-z0-9._-]{1,40}$ ]] || die "label must contain 1-40 letters, numbers, dots, underscores, or hyphens"
+    ensure_session
+    require_loaded_keys
+
+    IFS= read -r owner_token < /proc/sys/kernel/random/uuid
+    safe_host="${host//@/-at-}"
+    safe_host="${safe_host//:/-}"
+    name="${safe_host}-${label}-$(date +%H%M%S)"
+    command="$(internal_command _connect "$host")"
+    window_id="$(tmux new-window -d -P -F '#{window_id}' -t "$SESSION_NAME:" -n "$name" "$command")"
+    tmux set-option -w -t "$window_id" @ssh_access_role ai
+    tmux set-option -w -t "$window_id" @ssh_access_owner "$owner_token"
+    tmux set-option -w -t "$window_id" @ssh_access_host "$host"
+
+    printf 'session=%s\n' "$SESSION_NAME"
+    printf 'window_id=%s\n' "$window_id"
+    printf 'window_name=%s\n' "$name"
+    printf 'host=%s\n' "$host"
+    printf 'owner_token=%s\n' "$owner_token"
+}
+
+close_window() {
+    local confirmation=${1:-} window_id=${2:-} owner_token=${3:-}
+    local actual_session actual_role actual_owner unlock_id
+
+    [[ "$confirmation" == "--confirmed-by-user" ]] || die "explicit user confirmation is required"
+    [[ "$window_id" =~ ^@[0-9]+$ ]] || die "invalid tmux window ID: $window_id"
+    [[ "$owner_token" =~ ^[0-9a-f-]{36}$ ]] || die "invalid owner token"
+
+    actual_session="$(tmux display-message -p -t "$window_id" '#{session_name}' 2>/dev/null)" || die "window does not exist: $window_id"
+    actual_role="$(tmux show-option -qv -w -t "$window_id" @ssh_access_role)"
+    actual_owner="$(tmux show-option -qv -w -t "$window_id" @ssh_access_owner)"
+    unlock_id="$(tmux show-option -qv -t "$SESSION_NAME" @ssh_access_unlock_window)"
+
+    [[ "$actual_session" == "$SESSION_NAME" ]] || die "window is not in the $SESSION_NAME session"
+    [[ "$window_id" != "$unlock_id" ]] || die "the unlock window can never be closed by this command"
+    [[ "$actual_role" == "ai" ]] || die "window is not helper-managed AI SSH access"
+    [[ "$actual_owner" == "$owner_token" ]] || die "owner token does not match"
+
+    tmux kill-window -t "$window_id"
+    printf 'closed window %s\n' "$window_id"
+}
+
+unlock_shell() {
+    export SSH_AUTH_SOCK="$SOCKET_PATH"
+    unset SSH_AGENT_PID
+    export PS1='[ssh-access:unlock] %# '
+
+    printf '\nHuman-controlled SSH unlock window.\n'
+    printf 'Load keys with:\n'
+    printf '  ssh-add ~/.ssh/id_ed25519_github ~/.ssh/id_ed25519_servers ~/.ssh/id_ed25519_omarchy_general\n\n'
+
+    exec /usr/bin/zsh -f
+}
+
+connect_host() {
+    local host=${1:-} ssh_status
+
+    [[ "$host" =~ ^[A-Za-z0-9][A-Za-z0-9._@:-]{0,127}$ ]] || die "invalid SSH host"
+    export SSH_AUTH_SOCK="$SOCKET_PATH"
+    unset SSH_AGENT_PID
+
+    printf 'Connecting directly to %s...\n' "$host"
+    set +e
+    /usr/bin/ssh "$host"
+    ssh_status=$?
+    set -e
+    printf '\nSSH connection to %s closed with status %s. Window retained for inspection.\n' "$host" "$ssh_status"
+    exec /usr/bin/sleep infinity
+}
+
+main() {
+    require_commands
+
+    case "${1:-}" in
+        setup) setup ;;
+        attach) attach ;;
+        status) status ;;
+        open) shift; open_host "$@" ;;
+        close-window) shift; close_window "$@" ;;
+        _unlock-shell) unlock_shell ;;
+        _connect) shift; connect_host "$@" ;;
+        -h|--help|help|'') usage ;;
+        *) usage >&2; die "unknown command: $1" ;;
+    esac
+}
+
+main "$@"
