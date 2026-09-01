@@ -83,6 +83,61 @@ GNU Stow creates symlinks from your home directory to the files in this reposito
 
 This means you edit files in their normal locations (`~/.config/nvim/init.lua`, `~/.config/alacritty/alacritty.toml`), but they're actually stored in `~/dotfiles-arch` and version controlled by git.
 
+## Shared SSH access for AI agents
+
+The `ssh-access` helper provides one manually unlocked OpenSSH agent through a
+dedicated, human-visible tmux session. It reuses Arch's built-in systemd user
+socket at `$XDG_RUNTIME_DIR/ssh-agent.socket`; private keys and passphrases are
+never stored by the helper.
+
+### One-time installation
+
+Create targeted links instead of stowing the complete, partially reconciled
+`bin` and `opencode` packages:
+
+```bash
+[[ -e ~/.local/bin/ssh-access || -L ~/.local/bin/ssh-access ]] || \
+  ln -s ~/work/projects/dotfiles-arch/bin/.local/bin/ssh-access ~/.local/bin/ssh-access
+mkdir -p ~/.config/opencode/skills
+[[ -e ~/.config/opencode/skills/ssh-access || -L ~/.config/opencode/skills/ssh-access ]] || \
+  ln -s ~/work/projects/dotfiles-arch/opencode/.config/opencode/skills/ssh-access ~/.config/opencode/skills/ssh-access
+ssh-access setup
+```
+
+Restart OpenCode after installing or updating the skill.
+
+### Normal use
+
+After a reboot or OpenSSH agent restart:
+
+```bash
+ssh-access attach
+ssh-add ~/.ssh/id_ed25519_github ~/.ssh/id_ed25519_servers ~/.ssh/id_ed25519_omarchy_general
+```
+
+Enter passphrases in the `unlock` window, then detach with `Ctrl-b d`. The keys
+remain available until the OpenSSH agent is restarted or its identities are
+removed. `ssh-access status` shows the socket, loaded key fingerprints, and
+managed tmux windows.
+
+Tell an AI agent to use the global `ssh-access` skill and name every host it may
+access. The helper opens one host-named tmux window per host and connects it
+directly with interactive SSH. The AI sends plain remote commands into that
+connection, while ordinary local work stays outside the session. For example:
+
+```text
+Use ssh-access to connect to kuf-prod. Do not access any other SSH host.
+```
+
+To watch, attach with `tmux attach -t ssh-access` and select the host's window.
+Disconnected windows remain visible for inspection instead of disappearing.
+The skill requires readable, stepwise commands; complex remote work must use a
+named script shown before execution instead of opaque inline shell pipelines.
+
+An AI must ask before closing its window. If inspection is still needed, deny
+cleanup and leave the window open. To revoke all unlocked access yourself, run
+`ssh-add -D` from the `unlock` window.
+
 ## Configuration Notes
 
 ### Neovim
