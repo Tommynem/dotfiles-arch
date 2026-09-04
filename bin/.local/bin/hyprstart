@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Start the same Hyprland session configured by Omarchy's greetd setup.
+exec uwsm start -e -D Hyprland hyprland.desktop
