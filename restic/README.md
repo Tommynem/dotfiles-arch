@@ -7,8 +7,10 @@ Encrypted, automated backups to NAS using Restic.
 This configuration implements a robust backup strategy following industry best practices:
 
 - **Encryption**: AES-256 encryption for all backups
-- **Location**: Network storage at `/mnt/nas-pool/backup/restic-omarchy-new`
+- **Location**: Network storage at `/mnt/nas-pool/backup/restic-omarchy`
 - **Schedule**: Hourly backups (automated via systemd timer)
+- **Verification**: A structural check runs before retention/prune, followed by a 5% data check after prune
+- **Failure reporting**: Any failed stage makes `restic-backup.service` fail with a nonzero result and sends one persistent critical Omarchy notification
 - **Retention Policy**:
   - Last 24 hourly backups (1 day)
   - Last 30 daily backups (1 month)
@@ -118,6 +120,8 @@ restic-backup
 
 Logs are saved to: `~/.local/share/restic/logs/backup-YYYYMMDD-HHMMSS.log`
 
+If any setup, backup, retention, verification, or statistics stage fails, the user service records a nonzero result. Omarchy sends one critical `Restic backup failed` notification with the failed stage, exit status, and log path. The lifetime-0 notification bypasses Do Not Disturb, persists across shell restarts, and remains until it is explicitly dismissed by clicking, right-clicking, or closing it.
+
 ### Restoring Files
 
 ```bash
@@ -172,6 +176,23 @@ ls -lt ~/.local/share/restic/logs/
 
 # Systemd journal
 journalctl --user -u restic-backup.service -n 50
+```
+
+Use both the timestamped log and the user-service journal when investigating a failed run.
+
+### Repository Repair Safety
+
+Stop the timer before any repository repair so an automated backup cannot run concurrently with repair commands:
+
+```bash
+systemctl --user stop restic-backup.timer
+systemctl --user status restic-backup.timer
+```
+
+Run the repair and a full `restic check` manually. Restart the timer only after the repository is healthy:
+
+```bash
+systemctl --user start restic-backup.timer
 ```
 
 ## Customization
@@ -300,5 +321,5 @@ diff /tmp/restore-test/home/tomge/.zshrc ~/.zshrc
 
 - [Restic Documentation](https://restic.readthedocs.io/)
 - [Restic Forum](https://forum.restic.net/)
-- Repository location: `/mnt/nas-pool/backup/restic-omarchy-new`
+- Repository location: `/mnt/nas-pool/backup/restic-omarchy`
 - Logs: `~/.local/share/restic/logs/`

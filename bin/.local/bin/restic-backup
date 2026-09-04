@@ -5,97 +5,130 @@
 
 set -euo pipefail
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Log file
-LOG_DIR="/home/tomge/.local/share/restic/logs"
-mkdir -p "$LOG_DIR"
-LOG_FILE="$LOG_DIR/backup-$(date +%Y%m%d-%H%M%S).log"
+RESTIC_BIN="${RESTIC_BIN:-/usr/bin/restic}"
+RESTIC_ENV_FILE="${RESTIC_ENV_FILE:-/home/tomge/.config/restic/env}"
+RESTIC_LOG_DIR="${RESTIC_LOG_DIR:-/home/tomge/.local/share/restic/logs}"
+NAS_MOUNT_POINT="${NAS_MOUNT_POINT:-/mnt/nas-pool}"
+MOUNTPOINT_BIN="${MOUNTPOINT_BIN:-/usr/bin/mountpoint}"
+TEE_BIN="${TEE_BIN:-/usr/bin/tee}"
+CURRENT_STAGE="setup"
+LOG_FILE="$RESTIC_LOG_DIR/backup-$(date +%Y%m%d-%H%M%S).log"
 
-# Function to log messages
+on_exit() {
+    local exit_status=$?
+    trap - EXIT
+
+    if (( exit_status != 0 )); then
+        "${OMARCHY_NOTIFICATION_BIN:-/usr/bin/omarchy-notification-send}" \
+            -u critical \
+            "Restic backup failed" \
+            "Stage: $CURRENT_STAGE; status: $exit_status; log: $LOG_FILE" || :
+        exit "$exit_status"
+    fi
+}
+
+trap on_exit EXIT
+
+mkdir -p "$RESTIC_LOG_DIR"
+
 log() {
-    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $*" | tee -a "$LOG_FILE"
+    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $*" | "$TEE_BIN" -a "$LOG_FILE"
 }
 
 log_error() {
-    echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERROR:${NC} $*" | tee -a "$LOG_FILE"
+    echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERROR:${NC} $*" | "$TEE_BIN" -a "$LOG_FILE"
 }
 
-log_warning() {
-    echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARNING:${NC} $*" | tee -a "$LOG_FILE"
+fail() {
+    local failure_status=$1
+    shift
+    if log_error "$*"; then :; fi
+    exit "$failure_status"
 }
 
-# Load environment configuration
-if [[ ! -f "/home/tomge/.config/restic/env" ]]; then
-    log_error "Configuration file not found: /home/tomge/.config/restic/env"
-    exit 1
+run_restic() {
+    local restic_status tee_status
+    local -a pipeline_status
+
+    CURRENT_STAGE=$1
+    shift
+    set +e
+    "$RESTIC_BIN" "$@" 2>&1 | "$TEE_BIN" -a "$LOG_FILE"
+    pipeline_status=("${PIPESTATUS[@]}")
+    set -e
+    restic_status=${pipeline_status[0]}
+    tee_status=${pipeline_status[1]}
+
+    if (( restic_status != 0 )); then
+        return "$restic_status"
+    fi
+    return "$tee_status"
+}
+
+run_stage() {
+    local stage=$1 success_message=$2 stage_status
+    shift 2
+
+    if run_restic "$stage" "$@"; then
+        log "$success_message"
+    else
+        stage_status=$?
+        fail "$stage_status" "$stage failed with status $stage_status"
+    fi
+}
+
+if [[ ! -f "$RESTIC_ENV_FILE" ]]; then
+    fail 1 "Configuration file not found: $RESTIC_ENV_FILE"
 fi
 
-source /home/tomge/.config/restic/env
+source "$RESTIC_ENV_FILE"
 
-# Verify password file exists
 if [[ ! -f "$RESTIC_PASSWORD_FILE" ]]; then
-    log_error "Password file not found: $RESTIC_PASSWORD_FILE"
-    log_error "Please create the password file first"
-    exit 1
+    fail 1 "Password file not found: $RESTIC_PASSWORD_FILE"
 fi
 
-# Verify repository exists
 if [[ ! -d "$RESTIC_REPOSITORY" ]]; then
-    log_error "Repository not found: $RESTIC_REPOSITORY"
-    log_error "Please initialize the repository first with: restic init"
-    exit 1
+    fail 1 "Repository not found: $RESTIC_REPOSITORY"
 fi
 
-# Verify NAS is mounted
-if ! mountpoint -q /mnt/nas-pool; then
-    log_error "NAS is not mounted at /mnt/nas-pool"
-    exit 1
+if ! "$MOUNTPOINT_BIN" -q "$NAS_MOUNT_POINT"; then
+    fail 1 "NAS is not mounted at $NAS_MOUNT_POINT"
 fi
 
 log "Starting restic backup"
 log "Repository: $RESTIC_REPOSITORY"
 log "Source: $BACKUP_SOURCE"
 
-# Clear stale locks from previous interrupted runs.
-# `restic list locks` exits successfully even when locks exist, so running
-# restic's own stale-lock cleanup directly is the reliable preflight.
+CURRENT_STAGE="unlock"
 log "Checking for stale locks..."
-if restic unlock 2>&1 | tee -a "$LOG_FILE"; then
-    log "Stale lock check completed"
-else
-    log_error "Failed to check/remove stale locks"
-    exit 1
-fi
+run_stage "unlock" "Stale lock check completed" unlock
 
-# Create backup
+CURRENT_STAGE="backup"
 log "Creating backup snapshot..."
-if restic backup "$BACKUP_SOURCE" \
+run_stage "backup" "Backup snapshot created successfully" backup "$BACKUP_SOURCE" \
     --exclude-file="$RESTIC_EXCLUDE_FILE" \
     --exclude-caches \
     --one-file-system \
     --tag "auto" \
     --tag "$(hostname)" \
-    --retry-lock 5m 2>&1 | tee -a "$LOG_FILE"; then
-    log "Backup snapshot created successfully"
-else
-    log_error "Backup failed"
-    exit 1
-fi
+    --retry-lock 5m
 
-# Apply retention policy
+CURRENT_STAGE="pre-retention structural check"
+log "Verifying repository structure before retention..."
+run_stage "pre-retention structural check" "Repository structure verification passed" check --retry-lock 5m
+
+CURRENT_STAGE="forget --prune"
 log "Applying retention policy..."
 log "  - Hourly: $RETENTION_HOURLY"
 log "  - Daily: $RETENTION_DAILY"
 log "  - Weekly: $RETENTION_WEEKLY"
 log "  - Monthly: $RETENTION_MONTHLY"
 log "  - Yearly: $RETENTION_YEARLY"
-
-if restic forget \
+run_stage "forget --prune" "Retention policy applied successfully" forget \
     --keep-hourly "$RETENTION_HOURLY" \
     --keep-daily "$RETENTION_DAILY" \
     --keep-weekly "$RETENTION_WEEKLY" \
@@ -103,27 +136,20 @@ if restic forget \
     --keep-yearly "$RETENTION_YEARLY" \
     --tag "auto" \
     --prune \
-    --retry-lock 5m 2>&1 | tee -a "$LOG_FILE"; then
-    log "Retention policy applied successfully"
-else
-    log_warning "Retention policy failed (backup still created)"
-fi
+    --retry-lock 5m
 
-# Verify repository integrity (quick check)
-log "Verifying repository integrity..."
-if restic check --read-data-subset=5% --retry-lock 5m 2>&1 | tee -a "$LOG_FILE"; then
-    log "Repository verification passed"
-else
-    log_error "Repository verification failed!"
-fi
+CURRENT_STAGE="post-prune 5% check"
+log "Verifying repository data after retention..."
+run_stage "post-prune 5% check" "Repository data verification passed" check --read-data-subset=5% --retry-lock 5m
 
-# Show statistics
+CURRENT_STAGE="stats"
 log "Backup statistics:"
-restic stats latest --mode raw-data 2>&1 | tee -a "$LOG_FILE"
+run_stage "stats" "Backup statistics collected" stats latest --mode raw-data
 
-# Clean up old logs (keep last 30 days)
-find "$LOG_DIR" -name "backup-*.log" -mtime +30 -delete 2>/dev/null || true
+CURRENT_STAGE="log cleanup"
+find "$RESTIC_LOG_DIR" -name "backup-*.log" -mtime +30 -delete
 
+CURRENT_STAGE="complete"
 log "Backup completed successfully"
 log "Log file: $LOG_FILE"
 

@@ -6,6 +6,7 @@ ConditionACPower=true
 [Service]
 Type=oneshot
 ExecStart=%h/.local/bin/restic-backup
+UMask=0077
 
 # Environment for the backup process
 Environment=HOME=%h
