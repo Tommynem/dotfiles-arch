@@ -145,13 +145,6 @@ function fuzzy() {
     echo "$selection"
 }
 
-# Count lines of code
-function loc() {
-    find . -type f \( -name '*.java' -o -name '*.py' -o -name '*.rs' -o -name '*.c' -o -name '*.h' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.cs' -o -name '*.js' -o -name '*.ts' -o -name '*.tsx' \) \
-        ! -path '*/node_modules/*' ! -path '*/target/*' ! -path '*/build/*' ! -path '*/.git/*' ! -path '*/venv/*' ! -path '*/__pycache__/*' \
-        -exec wc -l {} + | sort -nr
-}
-
 # Copy current working directory to clipboard (requires wl-clipboard on Wayland)
 function cwd() {
     if command -v wl-copy &> /dev/null; then

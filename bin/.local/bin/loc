@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+# Count physical source lines while excluding dependencies and generated output.
+
+set -euo pipefail
+
+readonly DEFAULT_TOP=20
+
+usage() {
+    cat <<'EOF'
+Usage: loc [--top NUMBER | --all] [DIRECTORY]
+
+Count physical lines (including blank lines and comments) in recognized source,
+template, stylesheet, script, query, and project-configuration files.
+
+When DIRECTORY is in a Git worktree, loc counts tracked and non-ignored files,
+then filters known dependency, vendor, build, cache, and lockfile paths. Outside
+Git, it walks the directory with the same exclusions.
+
+Options:
+  --top NUMBER  Show this many largest files (default: 20).
+  --all         Show every counted file.
+  -h, --help    Show this help.
+EOF
+}
+
+die() {
+    printf 'loc: %s\n' "$*" >&2
+    exit 2
+}
+
+is_excluded_path() {
+    case "$1" in
+        */.git/*|*/node_modules/*|*/bower_components/*|*/vendor/*|*/third_party/*|*/third-party/*|\
+        */site-packages/*|*/dist-packages/*|*/.venv/*|*/venv/*|*/env/*|*/ENV/*|*/.tox/*|*/.nox/*|\
+        */__pycache__/*|*/.pytest_cache/*|*/.mypy_cache/*|*/.ruff_cache/*|*/.eggs/*|*/build/*|\
+        */dist/*|*/target/*|*/out/*|*/coverage/*|*/htmlcov/*|*/.next/*|*/.nuxt/*|*/.svelte-kit/*|\
+        */.angular/*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+is_lockfile_or_minified_asset() {
+    case "${1##*/}" in
+        package-lock.json|npm-shrinkwrap.json|pnpm-lock.yaml|yarn.lock|bun.lockb|uv.lock|poetry.lock|\
+        pdm.lock|Pipfile.lock|Cargo.lock|composer.lock|Gemfile.lock|go.sum|mix.lock|Podfile.lock|\
+        flake.lock|*.min.js|*.min.css|*.map)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+is_supported_source_file() {
+    local file=$1 lower first_line
+    lower=${file,,}
+
+    case "$lower" in
+        *.py|*.pyi|*.java|*.kt|*.kts|*.scala|*.groovy|*.gradle|*.c|*.h|*.cc|*.cp|*.cpp|*.cxx|\
+        *.hxx|*.hpp|*.hh|*.m|*.mm|*.cs|*.fs|*.fsx|*.vb|*.go|*.rs|*.swift|*.dart|*.zig|*.nim|\
+        *.php|*.rb|*.r|*.lua|*.pl|*.pm|*.t|*.clj|*.cljs|*.cljc|*.ex|*.exs|*.erl|*.hrl|*.hs|\
+        *.lhs|*.jl|*.sol|*.v|*.vhd|*.vhdl|*.asm|*.s|*.sh|*.bash|*.zsh|*.fish|*.ps1|\
+        *.js|*.mjs|*.cjs|*.jsx|*.ts|*.mts|*.cts|*.tsx|*.vue|*.svelte|*.astro|\
+        *.html|*.htm|*.jinja|*.jinja2|*.j2|*.njk|*.twig|*.hbs|*.handlebars|*.mustache|*.ejs|\
+        *.liquid|*.tmpl|*.tpl|*.css|*.scss|*.sass|*.less|*.sql|*.graphql|*.gql|*.proto|\
+        *.tf|*.tfvars|*.hcl|*.json|*.jsonc|*.toml|*.yaml|*.yml|*.xml|*.xsd|*.xslt|\
+        */makefile|*/gnumakefile|*/dockerfile|*/containerfile|*/justfile|*/cmakelists.txt)
+            return 0
+            ;;
+    esac
+
+    # Include extensionless interpreter scripts without treating arbitrary data as code.
+    IFS= read -r first_line < "$file" || true
+    case "$first_line" in
+        '#!'*bash*|'#!'*sh*|'#!'*zsh*|'#!'*fish*|'#!'*python*|'#!'*ruby*|'#!'*perl*|'#!'*php*|\
+        '#!'*node*|'#!'*deno*|'#!'*bun*|'#!'*lua*|'#!'*rscript*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+top=$DEFAULT_TOP
+root=.
+root_was_set=false
+
+while (($#)); do
+    case "$1" in
+        --top)
+            (($# >= 2)) || die '--top requires a positive integer'
+            top=$2
+            shift 2
+            ;;
+        --all)
+            top=0
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            die "unknown option: $1"
+            ;;
+        *)
+            [[ "$root_was_set" == false ]] || die 'only one directory may be provided'
+            root=$1
+            root_was_set=true
+            shift
+            ;;
+    esac
+done
+
+(($# == 0)) || die 'only one directory may be provided'
+[[ "$top" =~ ^[0-9]+$ ]] || die '--top requires a non-negative integer'
+[[ -d "$root" ]] || die "not a directory: $root"
+
+declare -a files=()
+if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    while IFS= read -r -d '' file; do
+        files+=("$root/$file")
+    done < <(git -C "$root" ls-files --cached --others --exclude-standard -z)
+else
+    while IFS= read -r -d '' file; do
+        files+=("$file")
+    done < <(
+        find "$root" \
+            \( -type d \( -name .git -o -name node_modules -o -name bower_components -o -name vendor -o \
+            -name third_party -o -name third-party -o -name site-packages -o -name dist-packages -o \
+            -name .venv -o -name venv -o -name env -o -name ENV -o -name .tox -o -name .nox -o \
+            -name __pycache__ -o -name .pytest_cache -o -name .mypy_cache -o -name .ruff_cache -o \
+            -name build -o -name dist -o -name target -o -name out -o -name coverage -o -name htmlcov -o \
+            -name .next -o -name .nuxt -o -name .svelte-kit -o -name .angular \) -prune \) -o \
+            -type f -print0
+    )
+fi
+
+{
+    for file in "${files[@]}"; do
+        [[ -f "$file" && ! -L "$file" ]] || continue
+        is_excluded_path "$file" && continue
+        is_lockfile_or_minified_asset "$file" && continue
+        is_supported_source_file "$file" || continue
+
+        if lines=$(wc -l < "$file" 2>/dev/null); then
+            display_path=$file
+            if [[ "$file" == "$root/"* ]]; then
+                display_path=${file#"$root"/}
+            fi
+            printf '%s\t%s\n' "$lines" "$display_path"
+        fi
+    done
+} | LC_ALL=C sort -t $'\t' -k1,1nr | awk -F $'\t' -v limit="$top" '
+    {
+        file_count++
+        total_lines += $1
+
+        if (limit == 0 || file_count <= limit) {
+            shown_lines[file_count] = $1
+            shown_paths[file_count] = substr($0, index($0, FS) + 1)
+        }
+    }
+    END {
+        if (file_count == 0) {
+            print "loc: no supported source files found." > "/dev/stderr"
+            exit 1
+        }
+
+        shown_count = limit == 0 || file_count < limit ? file_count : limit
+        printf "Showing %d largest source files (%d counted; %d hidden), smallest to largest:\n\n", \
+            shown_count, file_count, file_count - shown_count
+        printf "%10s  %s\n", "Lines", "File"
+        printf "%10s  %s\n", "-----", "----"
+
+        for (row = shown_count; row >= 1; row--) {
+            printf "%10d  %s\n", shown_lines[row], shown_paths[row]
+        }
+
+        printf "\n%10s  %s\n", "-------", "-----"
+        printf "%10d  %s\n", total_lines, "TOTAL"
+    }
+'
