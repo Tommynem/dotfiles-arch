@@ -27,3 +27,8 @@ require("default.hypr.toggles")
 
 -- Add any other personal Hyprland configuration below.
 -- o.window("qemu", { workspace = "5" })
+
+o.window(
+  { class = "^chromium-browser$", title = ".*Google Chrome for Testing$" },
+  { workspace = "9", no_focus = true, focus_on_activate = false }
+)
