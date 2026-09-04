@@ -24,10 +24,8 @@ xcompose/.XCompose
 *.bak.*
 *.bak
 
-# Generated omarchy state
+# Generated OMO state
 .omo/
-!opencode/.omo/
-!opencode/.omo/omo.jsonc
 
 # Generated tool wrappers/binaries (installed by omarchy/tools, not hand-written)
 bin/.local/bin/basedpyright
