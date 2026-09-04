@@ -295,14 +295,7 @@ esac
 
 export PATH="$PATH:/home/tomge/.local/bin:/home/tomge/.cargo/bin"
 
-# ssh agent autostart
-if command -v keychain >/dev/null 2>&1; then
-  _keychain_socket="${XDG_RUNTIME_DIR:-/run/user/$UID}/keychain-ssh-agent.socket"
-  eval "$(keychain --eval --quiet --nogui --ssh-agent-socket "$_keychain_socket" \
-    id_ed25519_omarchy_laptop \
-    id_ed25519_github_laptop \
-    id_ed25519_servers_laptop)"
-  unset _keychain_socket
-fi
+# Bitwarden Desktop SSH agent
+export SSH_AUTH_SOCK="$HOME/.bitwarden-ssh-agent.sock"
 eval "$(mise activate zsh)"
 export PATH=$HOME/go/bin:$PATH
