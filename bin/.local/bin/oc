@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Short name for the permanent native OpenCode v2 installation.
+set -euo pipefail
+exec "$HOME/.local/bin/opencode" "$@"

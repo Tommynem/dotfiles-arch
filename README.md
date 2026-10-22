@@ -120,6 +120,13 @@ remain available until the OpenSSH agent is restarted or its identities are
 removed. `ssh-access status` shows the socket, loaded key fingerprints, and
 managed tmux windows.
 
+PID-isolated launchers may be unable to query
+the systemd user manager even when the SSH agent is reachable. `ssh-access open`
+reuses an existing socket and still checks for loaded identities; a status of
+`socket unit: unavailable (user manager not reachable)` alone does not block use.
+If the socket is missing and cannot be started there, run `ssh-access setup`
+from a normal local terminal. No sandbox changes or agent restart are needed.
+
 Tell an AI agent to use the global `ssh-access` skill and name every host it may
 access. The helper opens one host-named tmux window per host and connects it
 directly with interactive SSH. The AI sends plain remote commands into that

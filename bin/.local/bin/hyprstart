@@ -1,4 +1,69 @@
 #!/bin/sh
 
-# Start the same Hyprland session configured by Omarchy's greetd setup.
+# Run outside the graphical session: stopping that session may kill the
+# terminal (and this script) before Hyprland can be started again.
+if [ "${1-}" != --recover ]; then
+    echo "Restarting Hyprland on TTY1; TTY2 will remain your rescue shell."
+    exec systemd-run --user --collect --unit="hyprstart-$$" \
+        /bin/sh "$0" --recover
+fi
+
+echo "Stopping the old graphical session..."
+systemctl --user start wayland-session-shutdown.target || exit 1
+
+# UWSM refuses to start while any of its old session targets are active.
+attempt=0
+while uwsm check is-active >/dev/null 2>&1 || \
+    systemctl --user is-active --quiet wayland-session-shutdown.target; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 40 ]; then
+        echo "Hyprland session did not stop within 20 seconds." >&2
+        exit 1
+    fi
+    sleep 0.5
+done
+
+# Greetd creates a fresh login on TTY1 after the old graphical session ends.
+# Bind the new compositor to that login, leaving the TTY2 shell accessible.
+target_session=
+attempt=0
+while [ -z "$target_session" ]; do
+    for candidate in $(loginctl show-seat seat0 -p Sessions --value); do
+        if [ "$(loginctl show-session "$candidate" -p User --value)" = "$(id -u)" ] && \
+            [ "$(loginctl show-session "$candidate" -p Type --value)" = tty ] && \
+            [ "$(loginctl show-session "$candidate" -p VTNr --value)" = 1 ]; then
+            target_session=$candidate
+            break
+        fi
+    done
+    [ -n "$target_session" ] && break
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 20 ]; then
+        echo "No TTY1 login session appeared within 10 seconds." >&2
+        exit 1
+    fi
+    sleep 0.5
+done
+
+echo "Activating TTY1 session $target_session..."
+loginctl activate "$target_session" || exit 1
+attempt=0
+while [ "$(loginctl show-session "$target_session" -p Active --value)" != yes ]; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 20 ]; then
+        echo "TTY1 did not become active within 10 seconds." >&2
+        exit 1
+    fi
+    sleep 0.5
+done
+
+# The worker inherited the old session's environment when it was started.
+unset WAYLAND_DISPLAY DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP
+XDG_SESSION_ID=$target_session
+XDG_SESSION_TYPE=tty
+XDG_SEAT=seat0
+XDG_VTNR=1
+export XDG_SESSION_ID XDG_SESSION_TYPE XDG_SEAT XDG_VTNR
+
+echo "Starting Hyprland..."
 exec uwsm start -e -D Hyprland hyprland.desktop

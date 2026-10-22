@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "oh-my-opencode": "github:gdraganic/oh-my-openagent#68d88c68fac9f519aeb988b4878c9dbaa2aa7ea9"
+  }
+}

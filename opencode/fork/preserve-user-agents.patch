@@ -1,0 +1,20 @@
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -191446,6 +191446,6 @@
+ 
+ // packages/omo-opencode/src/v2/agent-markdown.ts
+-import { mkdirSync as mkdirSync33, readFileSync as readFileSync88, writeFileSync as writeFileSync35 } from "fs";
++import { lstatSync as lstatAgentSync, mkdirSync as mkdirSync33, readFileSync as readFileSync88, writeFileSync as writeFileSync35 } from "fs";
+ import { join as join152 } from "path";
+ var ACTION_ALIASES = {
+   bash: "shell"
+@@ -191554,6 +191554,9 @@
+     if (!markdown)
+       continue;
+     const path28 = join152(input.directory, agentFileName(name));
++    // Symlinks are curated user definitions, not generated adapter output.
++    if (existsSync122(path28) && lstatAgentSync(path28).isSymbolicLink())
++      continue;
+     let changed = true;
+     try {
+       changed = readFileSync88(path28, "utf8") !== markdown;

@@ -1,0 +1,18 @@
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -191510,8 +191510,13 @@
+   const mode2 = agentMode(config2.mode);
+   if (mode2)
+     lines.push(`mode: ${mode2}`);
+-  if (typeof config2.model === "string" && config2.model.length > 0)
+-    lines.push(`model: ${yamlString(config2.model)}`);
++  if (typeof config2.model === "string" && config2.model.length > 0) {
++    const reasoning = config2.reasoning ?? config2.variant ?? config2.reasoningEffort ?? config2.options?.reasoningEffort;
++    const model = typeof reasoning === "string" && reasoning !== "auto" && !config2.model.includes("#")
++      ? `${config2.model}#${reasoning}`
++      : config2.model;
++    lines.push(`model: ${yamlString(model)}`);
++  }
+   if (typeof config2.color === "string")
+     lines.push(`color: ${yamlString(config2.color)}`);
+   if (config2.hidden === true)

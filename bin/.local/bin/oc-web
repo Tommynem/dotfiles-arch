@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Tailnet web access and a persistent TUI on the native shared OpenCode v2 service.
+set -euo pipefail
+
+self="$HOME/.local/bin/oc-web"
+native="$HOME/.local/bin/opencode"
+local_url=http://127.0.0.1:49374
+session=oc-web
+
+case ${1:-start} in
+  -h|--help|help)
+    cat <<'EOF'
+Usage: oc-web [start|pair|qr|attach|status]
+
+  start   Start the shared v2 service and a connected TUI in tmux session oc-web.
+          Publish HTTPS port 8445 to your tailnet only, preserving other routes.
+  pair    Start if needed and print a one-use browser link (valid 5 minutes).
+  qr      Show a phone-camera QR for browser sign-in (requires qrencode).
+  attach  Attach to oc-web; detach to leave it running.
+  status  Show tmux windows, the shared service address, and tailnet routes.
+
+opencode, oc and oc-web share the same normal host configuration and database.
+Browser sign-in lasts 30 days. Run start again after a host reboot.
+EOF
+    ;;
+  start|pair|qr)
+    dns=$(tailscale status --json | jq -er 'select(.BackendState == "Running") | .Self.DNSName | rtrimstr(".") | select(length > 0)')
+    url="https://$dns:8445"
+    route=$(tailscale serve status --json | jq -r --arg host "$dns:8445" '.Web[$host] // empty')
+    if [[ -n $route ]] && ! jq -e --arg target "$local_url" '.Handlers == {"/": {"Proxy": $target}}' <<<"$route" >/dev/null; then
+      printf 'oc-web: HTTPS port 8445 already has a different route; leaving it unchanged.\n' >&2
+      exit 1
+    fi
+    "$native" service start
+    if ! tmux has-session -t "=$session" 2>/dev/null; then
+      printf -v tui_command '%q tui' "$self"
+      tmux new-session -d -s "$session" -n tui -c "$HOME" "$tui_command"
+    elif ! tmux list-windows -t "=$session" -F '#{window_name}' | grep -Fxq tui; then
+      printf -v tui_command '%q tui' "$self"
+      tmux new-window -d -t "$session:" -n tui -c "$HOME" "$tui_command"
+    fi
+    tailscale serve --bg --https=8445 "$local_url"
+    printf '\nWeb: %s\nTerminal: oc-web attach\n' "$url"
+    if [[ ${1:-start} == pair ]]; then
+      "$native" pair --url "$url"
+    elif [[ ${1:-start} == qr ]]; then
+      pairing=$("$native" pair --url "$url")
+      link=$(awk '/^  https:\/\/.*\/auth\/connect\// {print $1; exit}' <<<"$pairing")
+      if [[ -z $link ]]; then
+        printf 'oc-web: no browser pairing link returned.\n' >&2
+        exit 1
+      fi
+      printf '\nScan with your phone camera while connected to Tailscale.\nOne use; expires in 5 minutes. Treat this QR like a password.\n\n'
+      printf '%s' "$link" | qrencode -t ANSIUTF8 -m 4
+      printf '\n%s\n' "$link"
+    else
+      printf 'First browser sign-in: oc-web pair\n'
+    fi
+    ;;
+  attach)
+    if [[ -n ${TMUX:-} ]]; then
+      exec tmux switch-client -t "=$session"
+    fi
+    exec tmux attach-session -t "=$session"
+    ;;
+  status)
+    if tmux has-session -t "=$session" 2>/dev/null; then
+      tmux list-windows -t "=$session"
+    else
+      printf 'oc-web tmux session is not running.\n'
+    fi
+    "$native" service status
+    tailscale serve status
+    ;;
+  tui)
+    exec "$native"
+    ;;
+  *)
+    printf 'oc-web: unknown command %s. Use oc-web --help.\n' "$1" >&2
+    exit 2
+    ;;
+esac

@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "@opencode-ai/plugin": "1.17.11",
     "@playwright/mcp": "0.0.77"
   }
 }

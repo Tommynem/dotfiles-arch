@@ -55,7 +55,11 @@ configure_session_environment() {
 }
 
 start_socket() {
-    systemctl --user start ssh-agent.socket
+    # PID-isolated callers may reach the agent without access to the user bus.
+    if [[ ! -S "$SOCKET_PATH" ]]; then
+        systemctl --user start ssh-agent.socket ||
+            die "could not start OpenSSH agent socket; run 'ssh-access setup' from a normal local terminal"
+    fi
     [[ -S "$SOCKET_PATH" ]] || die "OpenSSH agent socket was not created at $SOCKET_PATH"
 }
 
@@ -121,10 +125,10 @@ attach() {
 }
 
 status() {
-    local identity_status=0
+    local identity_status=0 unit_status
 
-    printf 'socket unit: '
-    systemctl --user is-active ssh-agent.socket || true
+    unit_status="$(systemctl --user is-active ssh-agent.socket 2>/dev/null)" || true
+    printf 'socket unit: %s\n' "${unit_status:-unavailable (user manager not reachable)}"
     printf 'socket path: %s (%s)\n' "$SOCKET_PATH" "$([[ -S "$SOCKET_PATH" ]] && printf ready || printf missing)"
 
     printf 'identities:\n'
